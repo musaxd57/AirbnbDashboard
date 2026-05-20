@@ -78,16 +78,7 @@
         "base": { "__rl": true, "value": "appc7SZojZt50Hv7v", "mode": "id" },
         "table": { "__rl": true, "value": "Reservations", "mode": "name" },
         "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "Rezervasyon_Kodu": "={{ $json.Rezervasyon_Kodu }}",
-            "Apartment":        "={{ $json.Apartment }}",
-            "Guest_Name":       "={{ $json.Guest_Name }}",
-            "Check_In":         "={{ $json.Check_In }}",
-            "Check_Out":        "={{ $json.Check_Out }}",
-            "Source":           "={{ $json.Source }}",
-            "Synced_At":        "={{ $json.Synced_At }}"
-          },
+          "mappingMode": "autoMapInputData",
           "matchingColumns": ["Rezervasyon_Kodu"],
           "schema": []
         },

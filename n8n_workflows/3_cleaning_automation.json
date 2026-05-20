@@ -1,0 +1,144 @@
+{
+  "name": "3. Temizlik Otomasyonu",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 30 }]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300],
+      "id": "node-schedule",
+      "name": "Her 30 Dakika"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": { "__rl": true, "value": "appc7SZojZt50Hv7v", "mode": "id" },
+        "table": { "__rl": true, "value": "Reservations", "mode": "name" },
+        "returnAll": true,
+        "filterByFormula": "{Check_Out} = TODAY()",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [220, 300],
+      "id": "node-get-checkouts",
+      "name": "Bugün Çıkış Yapanlar",
+      "credentials": { "airtableTokenApi": { "id": "AIRTABLE_CREDENTIAL_ID", "name": "Airtable Personal Access Token account" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "check-has-records",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "exists" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [440, 300],
+      "id": "node-filter",
+      "name": "Geçerli Rezervasyon mu?"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": { "__rl": true, "value": "appc7SZojZt50Hv7v", "mode": "id" },
+        "table": { "__rl": true, "value": "Cleaning_Tasks", "mode": "name" },
+        "returnAll": true,
+        "filterByFormula": "AND({Rezervasyon_Kodu} = '{{ $json.fields.Rezervasyon_Kodu }}', {Checkout_Date} = TODAY())",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [660, 300],
+      "id": "node-check-existing",
+      "name": "Zaten Görev Var mı?",
+      "credentials": { "airtableTokenApi": { "id": "AIRTABLE_CREDENTIAL_ID", "name": "Airtable Personal Access Token account" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const reservationItems = $('Bugün Çıkış Yapanlar').all();\nconst existingItems = $input.all();\n\nconst results = [];\n\nfor (const res of reservationItems) {\n  const kod = res.json.fields?.Rezervasyon_Kodu;\n  const alreadyExists = existingItems.some(e => e.json.fields?.Rezervasyon_Kodu === kod);\n  \n  if (!alreadyExists && kod) {\n    results.push({\n      json: {\n        Task_ID: `CLEAN-${kod}-${new Date().toISOString().split('T')[0]}`,\n        Apartment: res.json.fields?.Apartment || 'Bilinmeyen',\n        Checkout_Date: res.json.fields?.Check_Out,\n        Rezervasyon_Kodu: kod,\n        Status: 'Bekliyor'\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 300],
+      "id": "node-prepare-tasks",
+      "name": "Yeni Görevleri Hazırla"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "check-new-tasks",
+              "leftValue": "={{ $json.Task_ID }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "exists" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [1100, 300],
+      "id": "node-filter-new",
+      "name": "Yeni Görev Var mı?"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": { "__rl": true, "value": "appc7SZojZt50Hv7v", "mode": "id" },
+        "table": { "__rl": true, "value": "Cleaning_Tasks", "mode": "name" },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "schema": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [1320, 300],
+      "id": "node-create-task",
+      "name": "Temizlik Görevi Oluştur",
+      "credentials": { "airtableTokenApi": { "id": "AIRTABLE_CREDENTIAL_ID", "name": "Airtable Personal Access Token account" } }
+    },
+    {
+      "parameters": {
+        "chatId": "TELEGRAM_CHAT_ID",
+        "text": "🧹 *Temizlik Görevi Oluşturuldu*\n\n🏠 Daire: {{ $json.fields.Apartment }}\n📅 Çıkış: {{ $json.fields.Checkout_Date }}\n🔑 Kod: {{ $json.fields.Rezervasyon_Kodu }}\n\n⚠️ Temizlik bekliyor! Airtable'dan durumu güncelleyin.",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1540, 300],
+      "id": "node-telegram",
+      "name": "Telegram Bildirim Gönder",
+      "credentials": { "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot account" } }
+    }
+  ],
+  "connections": {
+    "Her 30 Dakika":           { "main": [[{ "node": "Bugün Çıkış Yapanlar",    "type": "main", "index": 0 }]] },
+    "Bugün Çıkış Yapanlar":    { "main": [[{ "node": "Geçerli Rezervasyon mu?", "type": "main", "index": 0 }]] },
+    "Geçerli Rezervasyon mu?": { "main": [[{ "node": "Zaten Görev Var mı?",     "type": "main", "index": 0 }]] },
+    "Zaten Görev Var mı?":     { "main": [[{ "node": "Yeni Görevleri Hazırla",  "type": "main", "index": 0 }]] },
+    "Yeni Görevleri Hazırla":  { "main": [[{ "node": "Yeni Görev Var mı?",      "type": "main", "index": 0 }]] },
+    "Yeni Görev Var mı?":      { "main": [[{ "node": "Temizlik Görevi Oluştur", "type": "main", "index": 0 }]] },
+    "Temizlik Görevi Oluştur": { "main": [[{ "node": "Telegram Bildirim Gönder","type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

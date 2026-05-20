@@ -10,7 +10,7 @@ import sys
 
 # ============================================================
 # BURAYA KENDİ DEĞERLERINI YAZ
-AIRTABLE_TOKEN = "patXXXXXXXXXXXXXX"
+AIRTABLE_TOKEN = "patxMXbPsO0oCqc9h"
 BASE_ID        = "appc7SZojZt50Hv7v"
 # ============================================================
 
@@ -180,17 +180,44 @@ def setup_cleaning_tasks_table(tables):
     return table_id
 
 
-def verify_apartments_table(tables):
-    print("\n[1] Apartments tablosu kontrol ediliyor...")
-    if "Apartments" not in tables:
-        print("  ! Apartments tablosu bulunamadı. Lütfen iCal URL'lerini ekleyin.")
-        return False
+def setup_apartments_table(tables):
+    print("\n[1] Apartments tablosu kuruluyor...")
 
-    table_id = tables["Apartments"]
-    r = requests.get(f"https://api.airtable.com/v0/{BASE_ID}/{table_id}",
-                     headers=HEADERS, params={"maxRecords": 1})
-    count = len(r.json().get("records", []))
-    print(f"  ✓ Apartments tablosu mevcut.")
+    if "Apartments" not in tables:
+        table_id = create_table("Apartments", [
+            {"name": "Apartment", "type": "singleLineText"}
+        ])
+        if not table_id:
+            return False
+        existing_fields = {"Apartment": {}}
+    else:
+        table_id = tables["Apartments"]
+        r = requests.get(META_URL, headers=HEADERS)
+        existing_fields = {}
+        for t in r.json()["tables"]:
+            if t["id"] == table_id:
+                existing_fields = {f["name"] for f in t["fields"]}
+                break
+
+    ai_fields = [
+        ("Calendar Name",   "url",             None),
+        ("Address",         "singleLineText",  None),
+        ("Door_Code",       "singleLineText",  None),
+        ("WiFi_Name",       "singleLineText",  None),
+        ("WiFi_Password",   "singleLineText",  None),
+        ("CheckIn_Time",    "singleLineText",  None),
+        ("CheckOut_Time",   "singleLineText",  None),
+        ("Parking",         "singleLineText",  None),
+        ("Nearby",          "multilineText",   None),
+        ("Notes",           "multilineText",   None),
+    ]
+
+    for field_name, field_type, options in ai_fields:
+        if field_name not in existing_fields:
+            add_field(table_id, field_name, field_type, options)
+            time.sleep(0.3)
+
+    print("  ✓ Apartments tablosu hazır.")
     return True
 
 
@@ -207,14 +234,18 @@ def main():
     tables = get_tables()
     print(f"Mevcut tablolar: {list(tables.keys())}")
 
-    verify_apartments_table(tables)
+    setup_apartments_table(tables)
     setup_reservations_table(tables)
     setup_cleaning_tasks_table(tables)
 
     print("\n" + "=" * 50)
     print("✅ Kurulum tamamlandı!")
-    print("\nSonraki adım: n8n_workflows/ klasöründeki")
-    print("JSON dosyalarını n8n'e import edin.")
+    print("\nSonraki adımlar:")
+    print("  1. Apartments tablosuna dairelerinizi ekleyin")
+    print("     (iCal URL, adres, WiFi, kapı kodu vb.)")
+    print("  2. n8n_workflows/ klasöründeki 4 JSON'u n8n'e import edin")
+    print("  3. n8n'de Airtable ve Telegram credential'larını bağlayın")
+    print("  4. Workflow 4 için ANTHROPIC_API_KEY'i n8n'e ekleyin")
     print("=" * 50)
 
 
