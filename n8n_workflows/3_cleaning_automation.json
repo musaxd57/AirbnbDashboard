@@ -57,7 +57,7 @@
         "base": { "__rl": true, "value": "appc7SZojZt50Hv7v", "mode": "id" },
         "table": { "__rl": true, "value": "Cleaning_Tasks", "mode": "name" },
         "returnAll": true,
-        "filterByFormula": "AND({Rezervasyon_Kodu} = '{{ $json.fields.Rezervasyon_Kodu }}', {Checkout_Date} = TODAY())",
+        "filterByFormula": "AND({Rezervasyon_Kodu} = '{{ $json.Rezervasyon_Kodu }}', {Checkout_Date} = TODAY())",
         "options": {}
       },
       "type": "n8n-nodes-base.airtable",
@@ -69,7 +69,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const reservationItems = $('Bugün Çıkış Yapanlar').all();\nconst existingItems = $input.all();\n\nconst results = [];\n\nfor (const res of reservationItems) {\n  const kod = res.json.fields?.Rezervasyon_Kodu;\n  const alreadyExists = existingItems.some(e => e.json.fields?.Rezervasyon_Kodu === kod);\n  \n  if (!alreadyExists && kod) {\n    results.push({\n      json: {\n        Task_ID: `CLEAN-${kod}-${new Date().toISOString().split('T')[0]}`,\n        Apartment: res.json.fields?.Apartment || 'Bilinmeyen',\n        Checkout_Date: res.json.fields?.Check_Out,\n        Rezervasyon_Kodu: kod,\n        Status: 'Bekliyor'\n      }\n    });\n  }\n}\n\nreturn results;"
+        "jsCode": "const reservationItems = $('Bugün Çıkış Yapanlar').all();\nconst existingItems = $input.all();\n\nconst results = [];\n\nfor (const res of reservationItems) {\n  const kod = res.json.Rezervasyon_Kodu;\n  const alreadyExists = existingItems.some(e => e.json.Rezervasyon_Kodu === kod);\n  \n  if (!alreadyExists && kod) {\n    results.push({\n      json: {\n        Task_ID: `CLEAN-${kod}-${new Date().toISOString().split('T')[0]}`,\n        Apartment: res.json.Apartment || 'Bilinmeyen',\n        Checkout_Date: res.json.Check_Out,\n        Rezervasyon_Kodu: kod,\n        Status: 'Bekliyor'\n      }\n    });\n  }\n}\n\nreturn results;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -120,7 +120,7 @@
     {
       "parameters": {
         "chatId": "TELEGRAM_CHAT_ID",
-        "text": "🧹 *Temizlik Görevi Oluşturuldu*\n\n🏠 Daire: {{ $json.fields.Apartment }}\n📅 Çıkış: {{ $json.fields.Checkout_Date }}\n🔑 Kod: {{ $json.fields.Rezervasyon_Kodu }}\n\n⚠️ Temizlik bekliyor! Airtable'dan durumu güncelleyin.",
+        "text": "🧹 *Temizlik Görevi Oluşturuldu*\n\n🏠 Daire: {{ $json.Apartment }}\n📅 Çıkış: {{ $json.Checkout_Date }}\n🔑 Kod: {{ $json.Rezervasyon_Kodu }}\n\n⚠️ Temizlik bekliyor! Airtable'dan durumu güncelleyin.",
         "additionalFields": { "parse_mode": "Markdown" }
       },
       "type": "n8n-nodes-base.telegram",

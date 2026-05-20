@@ -32,8 +32,8 @@
       "parameters": {
         "assignments": {
           "assignments": [
-            { "id": "apt-name", "name": "apartmentName", "value": "={{ $json.fields.Apartment }}", "type": "string" },
-            { "id": "ical-url",  "name": "icalUrl",       "value": "={{ $json.fields['Calendar Name'] }}", "type": "string" }
+            { "id": "apt-name", "name": "apartmentName", "value": "={{ $json.Apartment }}", "type": "string" },
+            { "id": "ical-url",  "name": "icalUrl",       "value": "={{ $json['Calendar Name'] }}", "type": "string" }
           ]
         },
         "options": {}
