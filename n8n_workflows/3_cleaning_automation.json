@@ -105,14 +105,7 @@
         "base": { "__rl": true, "value": "appc7SZojZt50Hv7v", "mode": "id" },
         "table": { "__rl": true, "value": "Cleaning_Tasks", "mode": "name" },
         "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "Task_ID":           "={{ $json.Task_ID }}",
-            "Apartment":         "={{ $json.Apartment }}",
-            "Checkout_Date":     "={{ $json.Checkout_Date }}",
-            "Rezervasyon_Kodu":  "={{ $json.Rezervasyon_Kodu }}",
-            "Status":            "Bekliyor"
-          },
+          "mappingMode": "autoMapInputData",
           "schema": []
         },
         "options": {}
