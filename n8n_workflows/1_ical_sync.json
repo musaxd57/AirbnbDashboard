@@ -35,29 +35,14 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "apt-name",
-              "name": "apartmentName",
-              "value": "={{ $json.Apartment }}",
-              "type": "string"
-            },
-            {
-              "id": "ical-url",
-              "name": "icalUrl",
-              "value": "={{ $json['Calendar Name'] }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
+        "mode": "runOnceForAllItems",
+        "jsCode": "// GAS buildAptMap gibi: tüm daireleri tek seferde işle\n// Hangi field adı olursa olsun bul (Apartment, Name, Daire, vb.)\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const r = item.json;\n\n  // iCal URL: Calendar Name field\n  const icalUrl = r['Calendar Name'] || r['ical_url'] || r['iCal_URL'] || '';\n  if (!icalUrl || !icalUrl.startsWith('http')) continue;\n\n  // Daire adı: field adı ne olursa olsun bul\n  // Önce bilinen adları dene\n  let apartmentName = r.Apartment || r.Name || r['Daire Adı'] || r['Daire'] || '';\n\n  // Hiçbiri yoksa: tüm string field'ları tara, URL olmayanı al\n  if (!apartmentName) {\n    for (const [key, val] of Object.entries(r)) {\n      if (\n        typeof val === 'string' &&\n        val.trim().length > 0 &&\n        !val.startsWith('http') &&\n        key !== 'id' &&\n        key !== 'createdTime'\n      ) {\n        apartmentName = val.trim();\n        break;\n      }\n    }\n  }\n\n  if (!apartmentName) apartmentName = 'Bilinmeyen';\n\n  results.push({ json: { apartmentName, icalUrl } });\n}\n\nreturn results;"
       },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [440, 300],
-      "id": "node-set-fields",
-      "name": "Daire Bilgisini Sakla"
+      "id": "node-build-map",
+      "name": "Daire Bilgisini Al"
     },
     {
       "parameters": {
@@ -80,7 +65,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst httpItems = $input.all();\nconst aptItems  = $('Daire Bilgisini Sakla').all();\n\nfor (let i = 0; i < httpItems.length; i++) {\n  const icalData      = httpItems[i].json.icalData;\n  const apartmentName = httpItems[i].json.apartmentName\n    || (aptItems[i] ? aptItems[i].json.apartmentName : 'Bilinmeyen')\n    || 'Bilinmeyen';\n\n  if (!icalData) continue;\n\n  const rawLines = icalData.split(/\\r?\\n/);\n  const lines = [];\n  for (const line of rawLines) {\n    if ((line.startsWith(' ') || line.startsWith('\\t')) && lines.length > 0) {\n      lines[lines.length - 1] += line.substring(1);\n    } else {\n      lines.push(line);\n    }\n  }\n\n  let evt = null;\n\n  for (const line of lines) {\n    if (line === 'BEGIN:VEVENT') {\n      evt = {};\n    } else if (line === 'END:VEVENT') {\n      if (evt?.start && evt?.end) {\n        const summary = (evt.summary || '').trim();\n        const sl = summary.toLowerCase();\n        if (sl.includes('not available') || sl.includes('airbnb (not available)')) {\n          evt = null;\n          continue;\n        }\n        const fmt = (raw) => {\n          const d = raw.replace(/T.*$/, '').replace('Z', '');\n          return d.length >= 8\n            ? `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)}`\n            : d;\n        };\n        const uid = (evt.uid || '').trim();\n        const kod = uid.includes('@') ? uid.split('@')[0] : uid || 'MANUAL';\n        results.push({\n          json: {\n            Rezervasyon_Kodu: kod,\n            Apartment:        apartmentName,\n            Guest_Name:       summary || 'Reserved',\n            Check_In:         fmt(evt.start),\n            Check_Out:        fmt(evt.end),\n            Source:           'Airbnb',\n            Synced_At:        new Date().toISOString().split('T')[0]\n          }\n        });\n      }\n      evt = null;\n    } else if (evt !== null) {\n      if (line.startsWith('DTSTART'))       evt.start   = line.split(':').slice(1).join(':').trim();\n      else if (line.startsWith('DTEND'))    evt.end     = line.split(':').slice(1).join(':').trim();\n      else if (line.startsWith('SUMMARY:')) evt.summary = line.substring(8).trim();\n      else if (line.startsWith('UID:'))     evt.uid     = line.substring(4).trim();\n    }\n  }\n}\n\nreturn results;"
+        "jsCode": "const results = [];\nconst httpItems = $input.all();\nconst aptItems  = $('Daire Bilgisini Al').all();\n\nfor (let i = 0; i < httpItems.length; i++) {\n  const icalData      = httpItems[i].json.icalData;\n  const apartmentName = (aptItems[i] ? aptItems[i].json.apartmentName : '') || 'Bilinmeyen';\n\n  if (!icalData) continue;\n\n  // RFC 5545 satır katlama aç\n  const rawLines = icalData.split(/\\r?\\n/);\n  const lines = [];\n  for (const line of rawLines) {\n    if ((line.startsWith(' ') || line.startsWith('\\t')) && lines.length > 0) {\n      lines[lines.length - 1] += line.substring(1);\n    } else {\n      lines.push(line);\n    }\n  }\n\n  let evt = null;\n\n  for (const line of lines) {\n    if (line === 'BEGIN:VEVENT') {\n      evt = {};\n    } else if (line === 'END:VEVENT') {\n      if (evt && evt.start && evt.end) {\n        const summary = (evt.summary || '').trim();\n        const sl = summary.toLowerCase();\n        if (sl.includes('not available') || sl.includes('airbnb (not available)')) {\n          evt = null;\n          continue;\n        }\n        const fmt = (raw) => {\n          const d = raw.replace(/T.*$/, '').replace('Z', '');\n          return d.length >= 8\n            ? d.substring(0,4) + '-' + d.substring(4,6) + '-' + d.substring(6,8)\n            : d;\n        };\n        const uid = (evt.uid || '').trim();\n        const kod = uid.includes('@') ? uid.split('@')[0] : (uid || 'MANUAL');\n        results.push({\n          json: {\n            Rezervasyon_Kodu: kod,\n            Apartment:        apartmentName,\n            Guest_Name:       summary || 'Reserved',\n            Check_In:         fmt(evt.start),\n            Check_Out:        fmt(evt.end),\n            Source:           'Airbnb',\n            Synced_At:        new Date().toISOString().split('T')[0]\n          }\n        });\n      }\n      evt = null;\n    } else if (evt !== null) {\n      if (line.startsWith('DTSTART'))        evt.start   = line.split(':').slice(1).join(':').trim();\n      else if (line.startsWith('DTEND'))     evt.end     = line.split(':').slice(1).join(':').trim();\n      else if (line.startsWith('SUMMARY:'))  evt.summary = line.substring(8).trim();\n      else if (line.startsWith('UID:'))      evt.uid     = line.substring(4).trim();\n    }\n  }\n}\n\nreturn results;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -114,11 +99,11 @@
     }
   ],
   "connections": {
-    "Her 30 Dakika":         { "main": [[{ "node": "Daireleri Getir",        "type": "main", "index": 0 }]] },
-    "Daireleri Getir":       { "main": [[{ "node": "Daire Bilgisini Sakla",  "type": "main", "index": 0 }]] },
-    "Daire Bilgisini Sakla": { "main": [[{ "node": "iCal Verisi Çek",        "type": "main", "index": 0 }]] },
-    "iCal Verisi Çek":       { "main": [[{ "node": "iCal Parse Et",          "type": "main", "index": 0 }]] },
-    "iCal Parse Et":         { "main": [[{ "node": "Reservations'a Kaydet",  "type": "main", "index": 0 }]] }
+    "Her 30 Dakika":      { "main": [[{ "node": "Daireleri Getir",       "type": "main", "index": 0 }]] },
+    "Daireleri Getir":    { "main": [[{ "node": "Daire Bilgisini Al",    "type": "main", "index": 0 }]] },
+    "Daire Bilgisini Al": { "main": [[{ "node": "iCal Verisi Çek",       "type": "main", "index": 0 }]] },
+    "iCal Verisi Çek":    { "main": [[{ "node": "iCal Parse Et",         "type": "main", "index": 0 }]] },
+    "iCal Parse Et":      { "main": [[{ "node": "Reservations'a Kaydet", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" },
   "tags": ["airbnb", "sync"]
