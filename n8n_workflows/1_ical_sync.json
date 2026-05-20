@@ -36,7 +36,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const r = $input.item.json;\nconst apartmentName =\n  r.Apartment           ||\n  (r.fields && r.fields.Apartment) ||\n  r.Name                ||\n  (r.fields && r.fields.Name)      ||\n  'Bilinmeyen';\nconst icalUrl =\n  r['Calendar Name']                      ||\n  (r.fields && r.fields['Calendar Name']) ||\n  '';\nif (!icalUrl) return [];\nreturn [{ json: { apartmentName, icalUrl } }];"
+        "jsCode": "const r = $input.item.json;\nconst apartmentName =\n  r.Apartment           ||\n  (r.fields && r.fields.Apartment) ||\n  r.Name                ||\n  (r.fields && r.fields.Name)      ||\n  'Bilinmeyen';\nconst icalUrl =\n  r['Calendar Name']                      ||\n  (r.fields && r.fields['Calendar Name']) ||\n  '';\nif (!icalUrl) return;\nreturn { json: { apartmentName, icalUrl } };"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
