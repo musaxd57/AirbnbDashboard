@@ -58,13 +58,12 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.anthropic.com/v1/messages",
+        "url": "https://api.openai.com/v1/chat/completions",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-api-key",         "value": "ANTHROPIC_API_KEY" },
-            { "name": "anthropic-version",  "value": "2023-06-01" },
-            { "name": "content-type",       "value": "application/json" }
+            { "name": "Authorization", "value": "Bearer OPENAI_API_KEY" },
+            { "name": "Content-Type",  "value": "application/json" }
           ]
         },
         "sendBody": true,
@@ -72,7 +71,7 @@
           "parameters": [
             {
               "name": "body",
-              "value": "={{ JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1024, messages: [{ role: 'user', content: $json.prompt }] }) }}"
+              "value": "={{ JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 1024, messages: [{ role: 'user', content: $json.prompt }] }) }}"
             }
           ]
         },
@@ -81,12 +80,12 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [880, 300],
-      "id": "node-claude-api",
-      "name": "Claude AI - Mesaj Üret"
+      "id": "node-openai-api",
+      "name": "ChatGPT - Mesaj Üret"
     },
     {
       "parameters": {
-        "jsCode": "const aiResponse = $json.content?.[0]?.text || 'AI mesaj üretemedi.';\nconst prev = $('AI Prompt Hazırla').item.json;\n\nreturn [{\n  json: {\n    aiMessage: aiResponse,\n    guestName: prev.guestName,\n    firstName: prev.firstName,\n    apartmentName: prev.apartmentName,\n    checkIn: prev.checkIn,\n    nights: prev.nights,\n    reservation_kod: prev.reservation_kod\n  }\n}];"
+        "jsCode": "const aiResponse = $json.choices?.[0]?.message?.content || 'AI mesaj üretemedi.';\nconst prev = $('AI Prompt Hazırla').item.json;\n\nreturn [{\n  json: {\n    aiMessage: aiResponse,\n    guestName: prev.guestName,\n    firstName: prev.firstName,\n    apartmentName: prev.apartmentName,\n    checkIn: prev.checkIn,\n    nights: prev.nights,\n    reservation_kod: prev.reservation_kod\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -112,8 +111,8 @@
     "Her Sabah 09:00":         { "main": [[{ "node": "Yarın Giriş Yapacaklar",    "type": "main", "index": 0 }]] },
     "Yarın Giriş Yapacaklar":  { "main": [[{ "node": "Daire Detaylarını Getir",   "type": "main", "index": 0 }]] },
     "Daire Detaylarını Getir": { "main": [[{ "node": "AI Prompt Hazırla",          "type": "main", "index": 0 }]] },
-    "AI Prompt Hazırla":       { "main": [[{ "node": "Claude AI - Mesaj Üret",     "type": "main", "index": 0 }]] },
-    "Claude AI - Mesaj Üret":  { "main": [[{ "node": "AI Yanıtını İşle",           "type": "main", "index": 0 }]] },
+    "AI Prompt Hazırla":       { "main": [[{ "node": "ChatGPT - Mesaj Üret",      "type": "main", "index": 0 }]] },
+    "ChatGPT - Mesaj Üret":    { "main": [[{ "node": "AI Yanıtını İşle",           "type": "main", "index": 0 }]] },
     "AI Yanıtını İşle":        { "main": [[{ "node": "Telegram'a Gönder",          "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" }
