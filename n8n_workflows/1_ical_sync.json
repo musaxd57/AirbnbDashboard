@@ -30,20 +30,13 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            { "id": "apt-name", "name": "apartmentName", "value": "={{ $json.Apartment || $json.fields?.Apartment }}", "type": "string" },
-            { "id": "ical-url",  "name": "icalUrl",       "value": "={{ $json['Calendar Name'] || $json.fields?.['Calendar Name'] }}", "type": "string" }
-          ]
-        },
-        "options": { "includeOtherFields": true }
+        "jsCode": "const r = $input.item.json;\nconst apartmentName = r.Apartment || r.fields?.Apartment || r.Name || r.fields?.Name || 'Bilinmeyen';\nconst icalUrl = r['Calendar Name'] || r.fields?.['Calendar Name'] || '';\nif (!icalUrl) return [];\nreturn [{ json: { apartmentName, icalUrl } }];"
       },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [440, 300],
-      "id": "node-set-fields",
-      "name": "Daire Bilgisini Sakla",
-      "onError": "continueRegularOutput"
+      "id": "node-extract-fields",
+      "name": "Daire Bilgisini Al"
     },
     {
       "parameters": {
@@ -65,7 +58,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const results = [];\nconst item = $input.item;\nconst icalData = item.json.icalData;\nconst apartmentName = item.json.apartmentName || item.json.Apartment || 'Bilinmeyen';\n\nif (!icalData) return results;\n\n// RFC 5545 satır katlama\nconst rawLines = icalData.split(/\\r?\\n/);\nconst lines = [];\nfor (const line of rawLines) {\n  if ((line.startsWith(' ') || line.startsWith('\\t')) && lines.length > 0) {\n    lines[lines.length - 1] += line.substring(1);\n  } else {\n    lines.push(line);\n  }\n}\n\nlet evt = null;\n\nfor (const line of lines) {\n  if (line === 'BEGIN:VEVENT') {\n    evt = {};\n  } else if (line === 'END:VEVENT') {\n    if (evt?.start && evt?.end) {\n      const summary = (evt.summary || '').trim();\n      if (summary.toLowerCase().includes('not available') || summary.toLowerCase().includes('airbnb (not available)')) {\n        evt = null;\n        continue;\n      }\n      const fmt = (raw) => {\n        const d = raw.replace(/T.*$/, '').replace('Z', '');\n        return d.length >= 8 ? `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)}` : d;\n      };\n      const uid = (evt.uid || '').trim();\n      const kod = uid.includes('@') ? uid.split('@')[0] : uid || 'MANUAL';\n      results.push({\n        json: {\n          Rezervasyon_Kodu: kod,\n          Apartment:        apartmentName,\n          Guest_Name:       summary || 'Reserved',\n          Check_In:         fmt(evt.start),\n          Check_Out:        fmt(evt.end),\n          Source:           'Airbnb',\n          Synced_At:        new Date().toISOString().split('T')[0]\n        }\n      });\n    }\n    evt = null;\n  } else if (evt !== null) {\n    if (line.startsWith('DTSTART'))       evt.start   = line.split(':').slice(1).join(':').trim();\n    else if (line.startsWith('DTEND'))    evt.end     = line.split(':').slice(1).join(':').trim();\n    else if (line.startsWith('SUMMARY:')) evt.summary = line.substring(8).trim();\n    else if (line.startsWith('UID:'))     evt.uid     = line.substring(4).trim();\n  }\n}\n\nreturn results;"
+        "jsCode": "const results = [];\nconst item = $input.item;\nconst icalData = item.json.icalData;\n// item.json.apartmentName is set when HTTP Request preserves input fields;\n// fallback to paired item from the extract node for guaranteed correctness\nconst apartmentName = item.json.apartmentName || $('Daire Bilgisini Al').item.json.apartmentName || 'Bilinmeyen';\n\nif (!icalData) return results;\n\n// RFC 5545 line unfolding\nconst rawLines = icalData.split(/\\r?\\n/);\nconst lines = [];\nfor (const line of rawLines) {\n  if ((line.startsWith(' ') || line.startsWith('\\t')) && lines.length > 0) {\n    lines[lines.length - 1] += line.substring(1);\n  } else {\n    lines.push(line);\n  }\n}\n\nlet evt = null;\n\nfor (const line of lines) {\n  if (line === 'BEGIN:VEVENT') {\n    evt = {};\n  } else if (line === 'END:VEVENT') {\n    if (evt?.start && evt?.end) {\n      const summary = (evt.summary || '').trim();\n      if (summary.toLowerCase().includes('not available') || summary.toLowerCase().includes('airbnb (not available)')) {\n        evt = null;\n        continue;\n      }\n      const fmt = (raw) => {\n        const d = raw.replace(/T.*$/, '').replace('Z', '');\n        return d.length >= 8 ? `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)}` : d;\n      };\n      const uid = (evt.uid || '').trim();\n      const kod = uid.includes('@') ? uid.split('@')[0] : uid || 'MANUAL';\n      results.push({\n        json: {\n          Rezervasyon_Kodu: kod,\n          Apartment:        apartmentName,\n          Guest_Name:       summary || 'Reserved',\n          Check_In:         fmt(evt.start),\n          Check_Out:        fmt(evt.end),\n          Source:           'Airbnb',\n          Synced_At:        new Date().toISOString().split('T')[0]\n        }\n      });\n    }\n    evt = null;\n  } else if (evt !== null) {\n    if (line.startsWith('DTSTART'))       evt.start   = line.split(':').slice(1).join(':').trim();\n    else if (line.startsWith('DTEND'))    evt.end     = line.split(':').slice(1).join(':').trim();\n    else if (line.startsWith('SUMMARY:')) evt.summary = line.substring(8).trim();\n    else if (line.startsWith('UID:'))     evt.uid     = line.substring(4).trim();\n  }\n}\n\nreturn results;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -94,11 +87,11 @@
     }
   ],
   "connections": {
-    "Her 30 Dakika":        { "main": [[{ "node": "Daireleri Getir",      "type": "main", "index": 0 }]] },
-    "Daireleri Getir":      { "main": [[{ "node": "Daire Bilgisini Sakla","type": "main", "index": 0 }]] },
-    "Daire Bilgisini Sakla":{ "main": [[{ "node": "iCal Verisi Çek",      "type": "main", "index": 0 }]] },
-    "iCal Verisi Çek":      { "main": [[{ "node": "iCal Parse Et",        "type": "main", "index": 0 }]] },
-    "iCal Parse Et":        { "main": [[{ "node": "Reservations'a Kaydet","type": "main", "index": 0 }]] }
+    "Her 30 Dakika":      { "main": [[{ "node": "Daireleri Getir",        "type": "main", "index": 0 }]] },
+    "Daireleri Getir":    { "main": [[{ "node": "Daire Bilgisini Al",     "type": "main", "index": 0 }]] },
+    "Daire Bilgisini Al": { "main": [[{ "node": "iCal Verisi Çek",        "type": "main", "index": 0 }]] },
+    "iCal Verisi Çek":    { "main": [[{ "node": "iCal Parse Et",          "type": "main", "index": 0 }]] },
+    "iCal Parse Et":      { "main": [[{ "node": "Reservations'a Kaydet",  "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" },
   "tags": ["airbnb", "sync"]
