@@ -10,7 +10,7 @@ import sys
 
 # ============================================================
 # BURAYA KENDİ DEĞERLERINI YAZ
-AIRTABLE_TOKEN = "patXXXXXXXXXXXXXX"
+AIRTABLE_TOKEN = "patxMXbPsO0oCqc9h"
 BASE_ID        = "appc7SZojZt50Hv7v"
 # ============================================================
 
