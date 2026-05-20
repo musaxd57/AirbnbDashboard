@@ -1,0 +1,120 @@
+{
+  "name": "4. Check-in AI Mesaj Hazırlayıcı",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 9 * * *" }]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300],
+      "id": "node-schedule",
+      "name": "Her Sabah 09:00"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": { "__rl": true, "value": "appc7SZojZt50Hv7v", "mode": "id" },
+        "table": { "__rl": true, "value": "Reservations", "mode": "name" },
+        "returnAll": true,
+        "filterByFormula": "AND({Check_In} = DATEADD(TODAY(), 1, 'days'), {Status} = 'Upcoming')",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [220, 300],
+      "id": "node-tomorrow-checkins",
+      "name": "Yarın Giriş Yapacaklar",
+      "credentials": { "airtableTokenApi": { "id": "AIRTABLE_CREDENTIAL_ID", "name": "Airtable Personal Access Token account" } }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": { "__rl": true, "value": "appc7SZojZt50Hv7v", "mode": "id" },
+        "table": { "__rl": true, "value": "Apartments", "mode": "name" },
+        "returnAll": false,
+        "filterByFormula": "{Apartment} = '{{ $json.fields.Apartment }}'",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [440, 300],
+      "id": "node-get-apartment-info",
+      "name": "Daire Detaylarını Getir",
+      "credentials": { "airtableTokenApi": { "id": "AIRTABLE_CREDENTIAL_ID", "name": "Airtable Personal Access Token account" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const reservation = $('Yarın Giriş Yapacaklar').item.json.fields;\nconst apartment = $input.item.json.fields || {};\n\nconst guestName = reservation.Guest_Name || 'Misafir';\nconst firstName = guestName.split(' ')[0];\nconst apartmentName = reservation.Apartment || 'Dairemiz';\nconst checkIn = reservation.Check_In;\nconst checkOut = reservation.Check_Out;\nconst nights = reservation.Nights || '?';\n\n// Daire bilgileri (Airtable'daki alanlara göre özelleştir)\nconst wifiName = apartment['WiFi_Name'] || 'EV-WIFI';\nconst wifiPass = apartment['WiFi_Password'] || '12345678';\nconst doorCode = apartment['Door_Code'] || 'Kapı şifresini ayrıca iletiyorum';\nconst address = apartment['Address'] || 'Adres için mesaj atınız';\nconst checkInTime = apartment['CheckIn_Time'] || '14:00';\nconst checkOutTime = apartment['CheckOut_Time'] || '11:00';\nconst parkingInfo = apartment['Parking'] || 'Açık otopark mevcut';\nconst nearbyInfo = apartment['Nearby'] || '';\n\nconst prompt = `Sen Airbnb ev sahibisin. Aşağıdaki bilgilere göre misafire samimi, kişisel ve sıcak bir Türkçe karşılama mesajı yaz. Mesaj 150-200 kelime olsun. Emoji kullan. Airbnb'nin standart mesajlarından farklı, gerçekten özenli hissettirsin.\n\nMisafir Adı: ${firstName}\nDaire: ${apartmentName}\nGiriş: ${checkIn} saat ${checkInTime}\nÇıkış: ${checkOut} saat ${checkOutTime}\nKalış: ${nights} gece\nWiFi: ${wifiName} / ${wifiPass}\nKapı Şifresi: ${doorCode}\nAdres: ${address}\nOtopark: ${parkingInfo}\n${nearbyInfo ? 'Yakın noktalar: ' + nearbyInfo : ''}\n\nMesaj şunları içersin: kişisel selamlama, giriş talimatları, WiFi, önemli notlar, \"keyifli bir konaklama\" dileği. Airbnb mesajlaşmasına kopyalanmaya hazır olsun.`;\n\nreturn [{\n  json: {\n    prompt,\n    guestName,\n    firstName,\n    apartmentName,\n    checkIn,\n    checkOut,\n    nights,\n    reservation_kod: reservation.Rezervasyon_Kodu\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300],
+      "id": "node-build-prompt",
+      "name": "AI Prompt Hazırla"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key",         "value": "ANTHROPIC_API_KEY" },
+            { "name": "anthropic-version",  "value": "2023-06-01" },
+            { "name": "content-type",       "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1024, messages: [{ role: 'user', content: $json.prompt }] }) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 300],
+      "id": "node-claude-api",
+      "name": "Claude AI - Mesaj Üret"
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResponse = $json.content?.[0]?.text || 'AI mesaj üretemedi.';\nconst prev = $('AI Prompt Hazırla').item.json;\n\nreturn [{\n  json: {\n    aiMessage: aiResponse,\n    guestName: prev.guestName,\n    firstName: prev.firstName,\n    apartmentName: prev.apartmentName,\n    checkIn: prev.checkIn,\n    nights: prev.nights,\n    reservation_kod: prev.reservation_kod\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300],
+      "id": "node-parse-response",
+      "name": "AI Yanıtını İşle"
+    },
+    {
+      "parameters": {
+        "chatId": "TELEGRAM_CHAT_ID",
+        "text": "🤖 *AI Check-in Mesajı Hazır*\n\n👤 Misafir: {{ $json.guestName }}\n🏠 Daire: {{ $json.apartmentName }}\n📅 Giriş: {{ $json.checkIn }} ({{ $json.nights }} gece)\n\n📋 *Airbnb'ye Kopyala:*\n\n{{ $json.aiMessage }}\n\n---\n_Bu mesajı Airbnb mesajlaşmasına yapıştırabilirsin._",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1320, 300],
+      "id": "node-send-telegram",
+      "name": "Telegram'a Gönder",
+      "credentials": { "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot account" } }
+    }
+  ],
+  "connections": {
+    "Her Sabah 09:00":         { "main": [[{ "node": "Yarın Giriş Yapacaklar",    "type": "main", "index": 0 }]] },
+    "Yarın Giriş Yapacaklar":  { "main": [[{ "node": "Daire Detaylarını Getir",   "type": "main", "index": 0 }]] },
+    "Daire Detaylarını Getir": { "main": [[{ "node": "AI Prompt Hazırla",          "type": "main", "index": 0 }]] },
+    "AI Prompt Hazırla":       { "main": [[{ "node": "Claude AI - Mesaj Üret",     "type": "main", "index": 0 }]] },
+    "Claude AI - Mesaj Üret":  { "main": [[{ "node": "AI Yanıtını İşle",           "type": "main", "index": 0 }]] },
+    "AI Yanıtını İşle":        { "main": [[{ "node": "Telegram'a Gönder",          "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
