@@ -380,18 +380,37 @@ table.mt tbody tr:last-child td{border-bottom:none}
 .err-box strong{display:block;margin-bottom:6px;font-size:14px}
 
 /* ── SIGNALS CARDS ───────────────────────────────────────── */
-.signals-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:12px}
-.sc{background:var(--s1);border:1px solid var(--brd);border-radius:var(--r2);padding:16px 18px;display:flex;flex-direction:column;gap:10px;border-left:3px solid var(--brd2)}
-.sc.crit{border-left-color:var(--crit)}
+.signals-grid{display:flex;flex-direction:column;gap:10px}
+.sc{
+  background:var(--s1);border:1px solid var(--brd);border-radius:var(--r2);
+  padding:18px 20px;display:flex;flex-direction:column;gap:10px;
+  border-left:3px solid var(--brd2);transition:.15s;
+}
+.sc:hover{border-color:var(--brd2)}
+.sc.crit{border-left-color:var(--crit);background:rgba(240,79,94,.03)}
 .sc.high{border-left-color:var(--high)}
 .sc.med{border-left-color:var(--med)}
 .sc.low{border-left-color:var(--low)}
 .sc-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.sc-apt{font-weight:600;font-size:14px;color:var(--tx)}
-.sc-type{font-size:10px;font-weight:500;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px}
-.sc-msg{font-size:12px;color:var(--tx2);line-height:1.55}
-.sc-akt{font-size:12px;color:var(--tx3);padding-top:2px;font-style:italic}
-.sc-foot{display:flex;gap:6px;align-items:center;padding-top:8px;border-top:1px solid var(--brd)}
+.sc-apt{font-weight:700;font-size:15px;color:var(--tx)}
+.sc-metrics{display:flex;flex-wrap:wrap;gap:6px}
+.sc-met{background:var(--s2);color:var(--tx);border:1px solid var(--brd2);padding:4px 12px;border-radius:5px;font-size:12px;font-weight:600;font-family:var(--mono)}
+.sc-prob-list{display:flex;flex-direction:column;gap:5px}
+.sc-prob{font-size:12px;color:#c0c0dc;padding-left:14px;position:relative;line-height:1.4}
+.sc-prob::before{content:'';position:absolute;left:4px;top:6px;width:4px;height:4px;border-radius:50%;background:var(--tx3)}
+.sc-divider{height:1px;background:var(--brd);margin:2px 0}
+.sc-chips{display:flex;flex-wrap:wrap;gap:6px}
+.sc-chip{background:var(--s3);color:var(--tx2);border:1px solid var(--brd2);padding:5px 14px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.2px}
+.sc.crit .sc-chip{color:var(--tx);border-color:rgba(240,79,94,.3)}
+.sc.high .sc-chip{color:var(--tx)}
+
+/* Vacancy table action chips */
+.v-chips{display:flex;flex-wrap:wrap;gap:5px}
+.v-chip{background:var(--s2);color:var(--tx2);border:1px solid var(--brd);padding:3px 9px;border-radius:4px;font-size:10px;font-weight:500;white-space:nowrap}
+/* Kritik row highlight */
+.tr-crit td:first-child{position:relative}
+.tr-crit td:first-child::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--crit);border-radius:0 2px 2px 0}
+.tr-crit{background:rgba(240,79,94,.03)}
 
 /* ── RESPONSIVE ──────────────────────────────────────────── */
 @media(max-width:1100px){.k5{grid-template-columns:repeat(3,1fr)}}
@@ -726,6 +745,17 @@ function calcPri(occ){
 
 function priCls(p){return{KRİTİK:'crit',YÜKSEK:'high',ORTA:'med',İYİ:'low'}[p]||'';}
 function priBadge(p){return B(p,{KRİTİK:'bcrit',YÜKSEK:'bhigh',ORTA:'bmed',İYİ:'blow'}[p]||'bm');}
+
+function aktChips(txt){
+  var t=(txt||'').toLowerCase();
+  var chips=[];
+  if(t.indexOf('same-day')>=0)chips.push('Same-Day Aç');
+  if(t.indexOf('min stay')>=0||t.indexOf('min-stay')>=0)chips.push('Min-Stay Düşür');
+  if(t.indexOf('-%20')>=0||t.indexOf('-20')>=0)chips.push('%20 İndirim');
+  if(t.indexOf('haftalık')>=0||t.indexOf('weekly')>=0)chips.push('Haftalık İndirim');
+  if(t.indexOf('last-minute')>=0)chips.push('Son Dakika');
+  return chips.filter(function(c,i){return chips.indexOf(c)===i;});
+}
 
 function sw(name,el){
 
@@ -1102,15 +1132,20 @@ function renderVacancy(rows){
     var pri=calcPri(r[1]);
     var orphanVal=(r[7]||0);
     var atilStr=orphanVal>0?orphanVal+' atıl aralık':'—';
+    var rowCls=pri==='KRİTİK'?' class="tr-crit"':'';
+    var chipList=aktChips(r[9]||'');
+    var aktHtml=chipList.length
+      ?'<div class="v-chips">'+chipList.map(function(ch){return'<span class="v-chip">'+ch+'</span>';}).join('')+'</div>'
+      :'<span style="color:var(--tx3);font-size:11px">'+(r[9]||'—')+'</span>';
 
-    html+='<tr>'+
+    html+='<tr'+rowCls+'>'+
       '<td style="font-weight:600">'+r[0]+'</td>'+
       '<td style="min-width:110px">'+occBar(r[1])+'</td>'+
       '<td style="text-align:center;font-family:var(--mono)">'+(r[2]||0)+'</td>'+
       '<td style="font-family:var(--mono);font-size:12px;color:var(--tx2)">'+sonraki+'</td>'+
       '<td style="font-size:12px;color:var(--tx3)">'+atilStr+'</td>'+
       '<td>'+priBadge(pri)+'</td>'+
-      '<td style="font-size:12px;color:var(--tx2);max-width:260px">'+(r[9]||'')+'</td>'+
+      '<td>'+aktHtml+'</td>'+
       '</tr>';
   });
 
@@ -1126,40 +1161,78 @@ function renderSignals(rows){
 
   E('tn3').textContent=rows.length;
 
-  var kritik=rows.filter(function(r){return(r[2]||'').indexOf('KRİTİK')>=0;}).length;
-  var bugun=rows.filter(function(r){return(r[2]||'').indexOf('BUGÜN')>=0;}).length;
-  var yuksek=rows.filter(function(r){return(r[2]||'').indexOf('YÜKSEK')>=0;}).length;
+  // Daireye göre grupla — 1 daire = 1 kart
+  var byApt={};
+  rows.forEach(function(r){
+    var apt=r[0]||'Bilinmeyen';
+    if(!byApt[apt])byApt[apt]=[];
+    byApt[apt].push(r);
+  });
 
-  E('skpi').innerHTML=K('Toplam',rows.length,'p','sinyal')+K('Kritik',kritik,'r','acil')+K('Yüksek',yuksek,'a','öncelik');
+  var cards=[];
 
-  if(!rows.length){E('sgrid').innerHTML='<div style="color:var(--tx3);padding:40px;text-align:center">Sinyal yok.</div>';return;}
+  Object.keys(byApt).forEach(function(apt){
+    var sigs=byApt[apt];
+    var occ=null,bosGun=null,orphan=0;
+    var types=[],allAkt='';
+
+    sigs.forEach(function(s){
+      var msg=s[3]||'',akt=s[4]||'',tf=fmtType(s[1]||'');
+      allAkt+=' '+akt;
+      if(tf&&types.indexOf(tf)<0)types.push(tf);
+      var om=msg.match(/Doluluk:\s*%(\d+)/);
+      var bm=msg.match(/Boş:\s*(\d+)/);
+      var rm=msg.match(/Orphan:\s*(\d+)/);
+      if(om&&occ===null)occ=parseInt(om[1]);
+      if(bm&&bosGun===null)bosGun=parseInt(bm[1]);
+      if(rm)orphan=Math.max(orphan,parseInt(rm[1]));
+    });
+
+    occ=occ||0; bosGun=bosGun||0;
+
+    // Risk skoru: doluluk eksikliği + atıl aralık + boş gün bonusu
+    var score=Math.max(5,100-occ);
+    if(orphan>0)score=Math.min(97,score+8+orphan*3);
+    if(bosGun>35)score=Math.min(97,score+8);
+    if(bosGun>45)score=Math.min(97,score+4);
+    score=Math.round(score);
+
+    var pri=score>=72?'KRİTİK':score>=52?'YÜKSEK':score>=32?'ORTA':'İYİ';
+    cards.push({apt:apt,score:score,pri:pri,occ:occ,bosGun:bosGun,orphan:orphan,types:types,chips:aktChips(allAkt)});
+  });
+
+  cards.sort(function(a,b){return b.score-a.score;});
+
+  var kCnt=cards.filter(function(c){return c.pri==='KRİTİK';}).length;
+  var yCnt=cards.filter(function(c){return c.pri==='YÜKSEK';}).length;
+  E('skpi').innerHTML=K('Daire',cards.length,'p','analiz')+K('Kritik',kCnt,'r','müdahale')+K('Yüksek',yCnt,'a','öncelik');
+
+  if(!cards.length){E('sgrid').innerHTML='<div style="color:var(--tx3);padding:40px;text-align:center">Sinyal bulunamadı.</div>';return;}
 
   var html='';
+  cards.forEach(function(c){
+    var sc=c.score>=72?'var(--crit)':c.score>=52?'var(--high)':c.score>=32?'var(--med)':'var(--low)';
 
-  rows.forEach(function(r){
-    var apt=r[0]||'',katRaw=r[1]||'',pri=r[2]||'',msg=r[3]||'',akt=r[4]||'';
-    var safeApt=apt.replace(/'/g,"\\'");
-    var kat=fmtType(katRaw);
-    var cls=priCls(pri);
+    var mets=[];
+    if(c.bosGun)mets.push(c.bosGun+' boş gün');
+    if(c.orphan)mets.push(c.orphan+' atıl aralık');
+    if(c.occ)mets.push('%'+c.occ+' doluluk');
 
-    var btns='';
-    if(katRaw.indexOf('TEMİZLİK')>=0||pri==='BUGÜN')
-      btns+='<button class="act-btn" onclick="doLog(\''+safeApt+'\',\'Temizlik tamamlandı\')">Temizlendi</button>';
-    if(pri==='BUGÜN'&&katRaw.indexOf('GİRİŞ')>=0)
-      btns+='<button class="act-btn" onclick="doLog(\''+safeApt+'\',\'Karşılama yapıldı\')">Karşılandı</button>';
-    if(akt.toLowerCase().indexOf('fiyat')>=0||pri==='KRİTİK')
-      btns+='<button class="act-btn" onclick="doLog(\''+safeApt+'\',\'Fiyat güncellendi\')">Fiyat Güncelle</button>';
+    var probHtml=c.types.map(function(t){return'<div class="sc-prob">'+t+'</div>';}).join('');
+    var chipHtml=c.chips.map(function(ch){return'<span class="sc-chip">'+ch+'</span>';}).join('');
 
     html+=
-      '<div class="sc '+cls+'">'+
-      '<div class="sc-head">'+
-        '<span class="sc-apt">'+apt+'</span>'+
-        priBadge(pri)+
-      '</div>'+
-      '<div class="sc-type">'+kat+'</div>'+
-      (msg?'<div class="sc-msg">'+msg+'</div>':'')+
-      (akt?'<div class="sc-akt">→ '+akt+'</div>':'')+
-      (btns?'<div class="sc-foot">'+btns+'</div>':'')+
+      '<div class="sc '+priCls(c.pri)+'">'+
+        '<div class="sc-head">'+
+          '<span class="sc-apt">'+c.apt+'</span>'+
+          '<div style="display:flex;align-items:center;gap:8px">'+
+            '<span style="font-size:11px;font-family:var(--mono);color:'+sc+'">Risk '+c.score+'</span>'+
+            priBadge(c.pri)+
+          '</div>'+
+        '</div>'+
+        (mets.length?'<div class="sc-metrics">'+mets.map(function(m){return'<span class="sc-met">'+m+'</span>';}).join('')+'</div>':'')+
+        (probHtml?'<div class="sc-prob-list">'+probHtml+'</div>':'')+
+        (chipHtml?'<div class="sc-divider"></div><div class="sc-chips">'+chipHtml+'</div>':'')+
       '</div>';
   });
 
