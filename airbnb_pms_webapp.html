@@ -1,0 +1,1801 @@
+<!DOCTYPE html>
+
+<html lang="tr">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Airbnb PMS</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+
+/* ── TOKENS ─────────────────────────────────────────────── */
+
+:root {
+
+  --bg:     #0a0a0f;
+
+  --s1:     #12121a;
+
+  --s2:     #1a1a26;
+
+  --s3:     #222235;
+
+  --brd:    rgba(255,255,255,.06);
+
+  --brd2:   rgba(255,255,255,.12);
+
+  --tx:     #f0f0f5;
+
+  --tx2:    #8888aa;
+
+  --tx3:    #55556a;
+
+  --brand:  #ff385c;
+
+  --brand2: #ff6b35;
+
+  --green:  #00d97e;
+
+  --red:    #ff4757;
+
+  --blue:   #4a9eff;
+
+  --amber:  #ffb300;
+
+  --purple: #a78bfa;
+
+  --crit:   #ff4757;
+
+  --high:   #ff6b35;
+
+  --med:    #ffb300;
+
+  --low:    #00d97e;
+
+  --r:      14px;
+
+  --r2:     20px;
+
+  --mono:   'JetBrains Mono', monospace;
+
+  --sans:   'Syne', sans-serif;
+
+}
+
+
+
+/* ── RESET ───────────────────────────────────────────────── */
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+html{scroll-behavior:smooth}
+
+body{
+
+  background:var(--bg);
+
+  color:var(--tx);
+
+  font-family:var(--sans);
+
+  font-size:14px;
+
+  line-height:1.6;
+
+  min-height:100vh;
+
+  overflow-x:hidden;
+
+}
+
+
+
+/* ── BACKGROUND GRID ─────────────────────────────────────── */
+
+body::before{
+
+  content:'';
+
+  position:fixed;
+
+  inset:0;
+
+  background-image:
+
+    linear-gradient(rgba(255,56,92,.03) 1px, transparent 1px),
+
+    linear-gradient(90deg, rgba(255,56,92,.03) 1px, transparent 1px);
+
+  background-size:60px 60px;
+
+  pointer-events:none;
+
+  z-index:0;
+
+}
+
+
+
+/* ── TOPBAR ──────────────────────────────────────────────── */
+
+.topbar{
+
+  position:sticky;top:0;z-index:100;
+
+  display:flex;justify-content:space-between;align-items:center;
+
+  padding:16px 32px;
+
+  background:rgba(10,10,15,.85);
+
+  backdrop-filter:blur(20px);
+
+  border-bottom:1px solid var(--brd);
+
+}
+
+.logo{display:flex;align-items:center;gap:12px;text-decoration:none}
+
+.logo-icon{
+
+  width:38px;height:38px;border-radius:11px;
+
+  background:linear-gradient(135deg,var(--brand),var(--brand2));
+
+  display:flex;align-items:center;justify-content:center;
+
+  font-size:18px;
+
+  box-shadow:0 0 24px rgba(255,56,92,.35);
+
+}
+
+.logo-name{font-size:17px;font-weight:800;letter-spacing:-.5px;color:var(--tx)}
+
+.logo-version{
+
+  font-size:10px;font-weight:600;font-family:var(--mono);
+
+  color:var(--brand);background:rgba(255,56,92,.1);
+
+  padding:2px 7px;border-radius:4px;border:1px solid rgba(255,56,92,.2);
+
+  margin-left:4px;
+
+}
+
+.topbar-right{display:flex;align-items:center;gap:14px}
+
+.live{
+
+  display:flex;align-items:center;gap:6px;
+
+  font-size:12px;font-weight:600;color:var(--green);
+
+  background:rgba(0,217,126,.08);padding:5px 11px;
+
+  border-radius:999px;border:1px solid rgba(0,217,126,.15);
+
+}
+
+.live-dot{
+
+  width:7px;height:7px;background:var(--green);border-radius:50%;
+
+  box-shadow:0 0 8px var(--green);
+
+  animation:blink 2s ease infinite;
+
+}
+
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+.date-pill{
+
+  font-family:var(--mono);font-size:12px;color:var(--tx2);
+
+  background:var(--s2);padding:5px 12px;border-radius:8px;
+
+  border:1px solid var(--brd);
+
+}
+
+.btn-ref{
+
+  display:flex;align-items:center;gap:7px;
+
+  background:var(--s2);color:var(--tx);
+
+  border:1px solid var(--brd2);padding:8px 16px;
+
+  border-radius:9px;cursor:pointer;font-family:var(--sans);
+
+  font-weight:600;font-size:13px;transition:.2s;
+
+}
+
+.btn-ref:hover{background:var(--s3);border-color:rgba(255,255,255,.2)}
+
+.btn-ref.loading svg{animation:spin 1s linear infinite}
+
+@keyframes spin{100%{transform:rotate(360deg)}}
+
+
+
+/* ── CONFIG MODAL ────────────────────────────────────────── */
+
+.modal-bg{
+
+  display:none;position:fixed;inset:0;z-index:200;
+
+  background:rgba(0,0,0,.7);backdrop-filter:blur(8px);
+
+  align-items:center;justify-content:center;
+
+}
+
+.modal-bg.open{display:flex}
+
+.modal{
+
+  background:var(--s1);border:1px solid var(--brd2);
+
+  border-radius:var(--r2);padding:32px;width:90%;max-width:500px;
+
+}
+
+.modal h3{font-size:18px;font-weight:700;margin-bottom:20px}
+
+.field{margin-bottom:16px}
+
+.field label{display:block;font-size:12px;font-weight:600;color:var(--tx2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+
+.field input{
+
+  width:100%;background:var(--s2);border:1px solid var(--brd2);
+
+  color:var(--tx);padding:10px 14px;border-radius:9px;
+
+  font-family:var(--mono);font-size:13px;outline:none;
+
+}
+
+.field input:focus{border-color:var(--brand)}
+
+.field .hint{font-size:11px;color:var(--tx3);margin-top:4px}
+
+.modal-btns{display:flex;gap:10px;margin-top:24px}
+
+.btn-save{
+
+  flex:1;background:var(--brand);color:#fff;border:none;
+
+  padding:11px;border-radius:9px;font-family:var(--sans);
+
+  font-weight:700;font-size:14px;cursor:pointer;
+
+}
+
+.btn-cancel{
+
+  background:var(--s2);color:var(--tx2);border:1px solid var(--brd);
+
+  padding:11px 20px;border-radius:9px;font-family:var(--sans);
+
+  font-weight:600;font-size:14px;cursor:pointer;
+
+}
+
+.cfg-btn{
+
+  display:flex;align-items:center;gap:6px;
+
+  background:var(--s2);color:var(--tx2);
+
+  border:1px solid var(--brd);padding:7px 14px;
+
+  border-radius:9px;cursor:pointer;font-family:var(--sans);
+
+  font-weight:600;font-size:13px;
+
+}
+
+.cfg-btn:hover{color:var(--tx);border-color:var(--brd2)}
+
+
+
+/* ── TABS ────────────────────────────────────────────────── */
+
+.tabs{
+
+  display:flex;gap:4px;padding:0 32px;
+
+  border-bottom:1px solid var(--brd);
+
+  background:rgba(10,10,15,.6);
+
+  position:sticky;top:71px;z-index:90;
+
+  overflow-x:auto;
+
+}
+
+.tab{
+
+  padding:14px 20px;cursor:pointer;
+
+  color:var(--tx2);font-weight:600;font-size:13px;
+
+  border-bottom:2px solid transparent;
+
+  display:flex;align-items:center;gap:8px;white-space:nowrap;
+
+  transition:.2s;
+
+}
+
+.tab:hover{color:var(--tx)}
+
+.tab.active{color:var(--brand);border-bottom-color:var(--brand)}
+
+.tn{
+
+  background:var(--s3);color:var(--tx3);
+
+  padding:2px 8px;border-radius:5px;
+
+  font-size:11px;font-weight:700;font-family:var(--mono);
+
+}
+
+.tab.active .tn{background:rgba(255,56,92,.12);color:var(--brand)}
+
+
+
+/* ── MAIN ────────────────────────────────────────────────── */
+
+.main{padding:28px 32px;max-width:1600px;margin:0 auto;position:relative;z-index:1}
+
+.pane{display:none}
+
+.pane.on{display:block;animation:fi .25s ease}
+
+@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.sec{font-size:15px;font-weight:700;margin:28px 0 14px;color:var(--tx);letter-spacing:-.3px}
+
+
+
+/* ── KPI ROW ─────────────────────────────────────────────── */
+
+.kpi-row{display:grid;gap:14px;margin-bottom:24px}
+
+.k5{grid-template-columns:repeat(5,1fr)}
+
+.k4{grid-template-columns:repeat(4,1fr)}
+
+.k3{grid-template-columns:repeat(3,1fr)}
+
+.kpi{
+
+  background:var(--s1);border:1px solid var(--brd);
+
+  border-radius:var(--r2);padding:20px 22px;
+
+  display:flex;flex-direction:column;gap:6px;
+
+  transition:.2s;cursor:default;
+
+  position:relative;overflow:hidden;
+
+}
+
+.kpi::after{
+
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+
+  background:currentColor;opacity:.3;
+
+}
+
+.kpi:hover{border-color:var(--brd2);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.3)}
+
+.kpi-lbl{font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.8px}
+
+.kpi-val{font-size:36px;font-weight:800;line-height:1;letter-spacing:-2px}
+
+.kpi-sub{font-size:11px;color:var(--tx3);font-family:var(--mono)}
+
+.kpi.g{color:var(--green)}.kpi.r{color:var(--red)}
+
+.kpi.b{color:var(--blue)}.kpi.a{color:var(--amber)}.kpi.p{color:var(--purple)}
+
+
+
+/* ── WEEK STRIP ──────────────────────────────────────────── */
+
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:28px}
+
+.wday{
+
+  background:var(--s1);border:1px solid var(--brd);
+
+  border-radius:var(--r);padding:14px 10px;text-align:center;
+
+  transition:.2s;
+
+}
+
+.wday.today{border-color:var(--brand);background:rgba(255,56,92,.05)}
+
+.wday:hover{border-color:var(--brd2)}
+
+.wd-n{font-size:10px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.8px}
+
+.wd-d{font-size:22px;font-weight:800;margin:4px 0 10px;letter-spacing:-1px}
+
+.wd-dots{display:flex;justify-content:center;gap:3px;flex-wrap:wrap;min-height:8px}
+
+.dot{width:7px;height:7px;border-radius:50%}
+
+.dot.g{background:var(--green)}.dot.r{background:var(--red)}.dot.b{background:var(--blue)}
+
+
+
+/* ── APT GRID ────────────────────────────────────────────── */
+
+.apt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+
+.apt{
+
+  background:var(--s1);border:1px solid var(--brd);
+
+  border-radius:var(--r2);padding:18px;
+
+  display:flex;flex-direction:column;gap:12px;
+
+  position:relative;overflow:hidden;transition:.2s;
+
+}
+
+.apt::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+
+.apt.cin::before{background:var(--green)}
+
+.apt.cout::before{background:var(--red)}
+
+.apt.stay::before{background:var(--blue)}
+
+.apt.upc::before{background:var(--amber)}
+
+.apt.past::before{background:var(--tx3)}
+
+.apt:hover{border-color:var(--brd2);box-shadow:0 8px 32px rgba(0,0,0,.3)}
+
+.apt.past{opacity:.4}
+
+.apt-top{display:flex;justify-content:space-between;align-items:flex-start}
+
+.apt-name{font-size:15px;font-weight:800;letter-spacing:-.3px}
+
+.apt-dates{
+
+  display:flex;align-items:center;gap:8px;
+
+  background:rgba(0,0,0,.3);padding:9px 12px;
+
+  border-radius:9px;font-family:var(--mono);font-size:12px;
+
+}
+
+.apt-arr{color:var(--tx3)}
+
+.apt-n{
+
+  margin-left:auto;font-weight:700;color:var(--brand);
+
+  font-family:var(--sans);font-size:11px;
+
+  background:rgba(255,56,92,.1);padding:2px 8px;border-radius:5px;
+
+}
+
+.apt-bot{display:flex;justify-content:space-between;align-items:center}
+
+.apt-guest{font-size:12px;color:var(--tx2)}
+
+.apt-guest::before{content:'👤  ';font-size:11px}
+
+.apt-kalan{font-size:11px;color:var(--tx3);font-family:var(--mono)}
+
+.apt-foot{border-top:1px solid var(--brd);padding-top:10px;display:flex;gap:8px;align-items:center}
+
+.price-tag{
+
+  font-family:var(--mono);font-size:11px;
+
+  color:var(--green);background:rgba(0,217,126,.08);
+
+  padding:2px 8px;border-radius:5px;
+
+}
+
+
+
+/* ── BADGE ───────────────────────────────────────────────── */
+
+.badge{
+
+  display:inline-flex;align-items:center;
+
+  padding:3px 9px;border-radius:5px;
+
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+
+}
+
+.bg{background:rgba(0,217,126,.1);color:var(--green);border:1px solid rgba(0,217,126,.2)}
+
+.br{background:rgba(255,71,87,.1);color:var(--red);border:1px solid rgba(255,71,87,.2)}
+
+.bb{background:rgba(74,158,255,.1);color:var(--blue);border:1px solid rgba(74,158,255,.2)}
+
+.ba{background:rgba(255,179,0,.1);color:var(--amber);border:1px solid rgba(255,179,0,.2)}
+
+.bm{background:var(--s3);color:var(--tx2);border:1px solid var(--brd)}
+
+.bcrit{background:rgba(255,71,87,.1);color:var(--crit);border:1px solid rgba(255,71,87,.25)}
+
+.bhigh{background:rgba(255,107,53,.1);color:var(--high);border:1px solid rgba(255,107,53,.25)}
+
+.bmed{background:rgba(255,179,0,.1);color:var(--med);border:1px solid rgba(255,179,0,.25)}
+
+.blow{background:rgba(0,217,126,.1);color:var(--low);border:1px solid rgba(0,217,126,.25)}
+
+.binfo{background:rgba(74,158,255,.1);color:var(--blue);border:1px solid rgba(74,158,255,.25)}
+
+
+
+/* clean badge */
+
+.cbdg{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px}
+
+.cdirty{color:var(--red);background:rgba(255,71,87,.1)}
+
+.cready{color:var(--green);background:rgba(0,217,126,.1)}
+
+.cok{color:var(--blue);background:rgba(74,158,255,.1)}
+
+
+
+/* ── TODAY GRID ──────────────────────────────────────────── */
+
+.today-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+.tblock{background:var(--s1);border:1px solid var(--brd);border-radius:var(--r2);overflow:hidden}
+
+.tblock-hd{
+
+  padding:13px 18px;font-weight:700;font-size:12px;
+
+  border-bottom:1px solid var(--brd);text-transform:uppercase;letter-spacing:.5px;
+
+}
+
+.tblock-hd.r{background:rgba(255,71,87,.08);color:var(--red);border-bottom-color:rgba(255,71,87,.15)}
+
+.tblock-hd.g{background:rgba(0,217,126,.08);color:var(--green);border-bottom-color:rgba(0,217,126,.15)}
+
+.tblock-hd.b{background:rgba(74,158,255,.08);color:var(--blue);border-bottom-color:rgba(74,158,255,.15)}
+
+.tblock-hd.a{background:rgba(255,179,0,.08);color:var(--amber);border-bottom-color:rgba(255,179,0,.15)}
+
+.tblock table{width:100%;border-collapse:collapse}
+
+.tblock th,.tblock td{padding:11px 18px;text-align:left;border-bottom:1px solid var(--brd)}
+
+.tblock th{font-size:11px;color:var(--tx2);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+
+.tblock tr:last-child td{border-bottom:none}
+
+.tblock tr:hover td{background:rgba(255,255,255,.02)}
+
+.tblock-empty{padding:28px;text-align:center;color:var(--tx3);font-style:italic;font-size:13px}
+
+
+
+/* ── TABLE ───────────────────────────────────────────────── */
+
+.tbl-wrap{
+
+  background:var(--s1);border:1px solid var(--brd);
+
+  border-radius:var(--r2);overflow-x:auto;
+
+}
+
+table.mt{width:100%;border-collapse:collapse}
+
+table.mt th{
+
+  background:rgba(0,0,0,.3);padding:13px 20px;text-align:left;
+
+  font-size:11px;font-weight:700;color:var(--tx2);
+
+  text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--brd);
+
+  white-space:nowrap;
+
+}
+
+table.mt td{padding:13px 20px;border-bottom:1px solid var(--brd);vertical-align:middle;font-size:13px}
+
+table.mt tbody tr:hover{background:rgba(255,255,255,.02)}
+
+table.mt tbody tr:last-child td{border-bottom:none}
+
+.obar{display:flex;align-items:center;gap:9px;min-width:100px}
+
+.otrack{flex:1;height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
+
+.ofill{height:100%;border-radius:2px;transition:width 1s ease}
+
+.opct{font-weight:700;font-size:12px;min-width:34px;font-family:var(--mono)}
+
+
+
+/* ── SUMMARY BAR ─────────────────────────────────────────── */
+
+.sum-bar{
+
+  display:flex;gap:20px;background:var(--s1);
+
+  padding:16px 22px;border-radius:var(--r2);
+
+  border:1px solid var(--brd);margin-bottom:16px;flex-wrap:wrap;
+
+}
+
+.sb-item{display:flex;align-items:center;gap:8px}
+
+.sb-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+.sb-lbl{color:var(--tx2);font-size:13px;font-weight:600}
+
+.sb-val{font-size:17px;font-weight:800;font-family:var(--mono);letter-spacing:-1px}
+
+
+
+/* ── ACT BTN ─────────────────────────────────────────────── */
+
+.act-btn{
+
+  background:var(--s2);color:var(--tx);border:1px solid var(--brd2);
+
+  padding:5px 11px;border-radius:6px;font-size:11px;font-weight:700;
+
+  cursor:pointer;margin-right:4px;font-family:var(--sans);transition:.15s;
+
+}
+
+.act-btn:hover{background:var(--s3)}.act-btn.done{opacity:.35;pointer-events:none;text-decoration:line-through}
+
+
+
+/* ── REVENUE CARD ────────────────────────────────────────── */
+
+.rev-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+
+.rev-card{
+
+  background:var(--s1);border:1px solid var(--brd);
+
+  border-radius:var(--r2);padding:20px;display:flex;flex-direction:column;gap:6px;
+
+}
+
+.rev-lbl{font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.8px}
+
+.rev-val{font-size:30px;font-weight:800;color:var(--green);letter-spacing:-2px;font-family:var(--mono)}
+
+.rev-sub{font-size:11px;color:var(--tx3)}
+
+
+
+/* ── LOG ─────────────────────────────────────────────────── */
+
+.log-list{padding:8px 0}
+
+.log-item{display:flex;gap:14px;min-height:50px}
+
+.log-time{width:46px;text-align:right;font-family:var(--mono);font-size:11px;color:var(--tx2);padding-top:2px}
+
+.log-dc{display:flex;flex-direction:column;align-items:center;width:12px}
+
+.log-dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--s1);flex-shrink:0}
+
+.log-dot.g{background:var(--green)}.log-dot.r{background:var(--red)}.log-dot.a{background:var(--amber)}.log-dot.b{background:var(--blue)}
+
+.log-line{width:2px;flex:1;background:var(--brd);margin:3px 0}
+
+.log-body{flex:1;padding-bottom:16px}
+
+.log-item:last-child .log-body{padding-bottom:0}
+
+.log-src{font-weight:700;font-size:13px;margin-bottom:2px}
+
+.log-msg{font-size:12px;color:var(--tx2)}
+
+.log-date{font-size:11px;color:var(--tx3);font-family:var(--mono);margin-top:2px}
+
+
+
+/* ── LOADER ──────────────────────────────────────────────── */
+
+.loader{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px;gap:16px;grid-column:1/-1}
+
+.lring{
+
+  width:36px;height:36px;
+
+  border:3px solid rgba(255,56,92,.15);border-top-color:var(--brand);
+
+  border-radius:50%;animation:spin 1s linear infinite;
+
+}
+
+.ltxt{color:var(--tx2);font-weight:600;font-size:14px}
+
+
+
+/* ── ERROR BOX ───────────────────────────────────────────── */
+
+.err-box{
+
+  background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.2);
+
+  border-radius:var(--r2);padding:24px 28px;
+
+  color:var(--red);font-size:13px;line-height:1.7;
+
+  grid-column:1/-1;
+
+}
+
+.err-box strong{display:block;margin-bottom:8px;font-size:15px}
+
+
+
+/* ── RESPONSIVE ──────────────────────────────────────────── */
+
+@media(max-width:1100px){.k5{grid-template-columns:repeat(3,1fr)}}
+
+@media(max-width:900px){
+
+  .k5,.k4{grid-template-columns:repeat(2,1fr)}
+
+  .apt-grid,.today-grid,.rev-row{grid-template-columns:1fr}
+
+  .week{grid-template-columns:repeat(4,1fr)}
+
+  .main,.topbar,.tabs{padding-left:16px;padding-right:16px}
+
+  .date-pill{display:none}
+
+}
+
+@media(max-width:480px){.k5,.k4,.k3{grid-template-columns:repeat(2,1fr)}}
+
+</style>
+
+</head>
+
+<body>
+
+
+
+<!-- CONFIG MODAL -->
+
+<div class="modal-bg" id="cfgModal">
+
+  <div class="modal">
+
+    <h3>⚙️ Bağlantı Ayarları</h3>
+
+    <div class="field">
+
+      <label>Google Apps Script Web App URL</label>
+
+      <input type="text" id="apiUrl" placeholder="https://script.google.com/macros/s/AKfycb.../exec">
+
+      <div class="hint">Apps Script → Dağıt → Web App URL'si buraya gelecek</div>
+
+    </div>
+
+    <div class="modal-btns">
+
+      <button class="btn-cancel" onclick="closeModal()">İptal</button>
+
+      <button class="btn-save" onclick="saveConfig()">Kaydet & Bağlan</button>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<!-- TOPBAR -->
+
+<div class="topbar">
+
+  <a href="#" class="logo" onclick="return false">
+
+    <div class="logo-icon">🏠</div>
+
+    <span class="logo-name">Airbnb PMS</span>
+
+    <span class="logo-version">v7</span>
+
+  </a>
+
+  <div style="display:flex;align-items:center;gap:12px">
+
+    <div class="live"><div class="live-dot"></div>Canlı</div>
+
+    <div class="date-pill" id="tdate">—</div>
+
+  </div>
+
+  <div class="topbar-right">
+
+    <span style="font-family:var(--mono);font-size:11px;color:var(--tx3)" id="cdown">—</span>
+
+    <button class="cfg-btn" onclick="openModal()">
+
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+
+      Ayarlar
+
+    </button>
+
+    <button class="btn-ref" id="rbtn" onclick="loadAll()">
+
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+
+        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+
+        <path d="M21 3v5h-5"/>
+
+        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+
+        <path d="M8 16H3v5"/>
+
+      </svg>
+
+      Yenile
+
+    </button>
+
+  </div>
+
+</div>
+
+
+
+<!-- TABS -->
+
+<div class="tabs">
+
+  <div class="tab active" onclick="sw('dashboard',this)">Dashboard <span class="tn" id="tn0">—</span></div>
+
+  <div class="tab" onclick="sw('today',this)">Bugün <span class="tn" id="tn1">—</span></div>
+
+  <div class="tab" onclick="sw('vacancy',this)">Boşluk <span class="tn" id="tn2">—</span></div>
+
+  <div class="tab" onclick="sw('signals',this)">AI Sinyalleri <span class="tn" id="tn3">—</span></div>
+
+  <div class="tab" onclick="sw('gelir',this)">Gelir <span class="tn" id="tn5">€</span></div>
+
+  <div class="tab" onclick="sw('log',this)">Log <span class="tn" id="tn4">—</span></div>
+
+</div>
+
+
+
+<!-- MAIN -->
+
+<div class="main">
+
+
+
+  <!-- DASHBOARD -->
+
+  <div class="pane on" id="tab-dashboard">
+
+    <div class="kpi-row k5" id="dkpi">
+
+      <div class="loader"><div class="lring"></div><div class="ltxt">Yükleniyor...</div></div>
+
+    </div>
+
+    <div class="sec">7 Günlük Görünüm</div>
+
+    <div class="week" id="wstrip"></div>
+
+    <div class="sec">Daire Durumları</div>
+
+    <div class="apt-grid" id="aptgrid"></div>
+
+  </div>
+
+
+
+  <!-- TODAY -->
+
+  <div class="pane" id="tab-today">
+
+    <div class="kpi-row k4" id="tkpi"></div>
+
+    <div class="today-grid" id="tgrid"></div>
+
+  </div>
+
+
+
+  <!-- VACANCY -->
+
+  <div class="pane" id="tab-vacancy">
+
+    <div class="kpi-row k3" id="vkpi"></div>
+
+    <div class="sum-bar" id="vsum"></div>
+
+    <div class="sec">60 Günlük Boşluk Analizi</div>
+
+    <div class="tbl-wrap">
+
+      <table class="mt">
+
+        <thead><tr><th>Daire</th><th>Doluluk</th><th>Boş Gün</th><th>Sonraki Boş</th><th>En Uzun</th><th>Orphan</th><th>Risk</th><th>Aksiyon</th></tr></thead>
+
+        <tbody id="vtbody"><tr><td colspan="8" style="text-align:center;padding:60px;color:var(--tx3)">Yükleniyor...</td></tr></tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
+
+
+  <!-- AI SIGNALS -->
+
+  <div class="pane" id="tab-signals">
+
+    <div class="kpi-row k3" id="skpi"></div>
+
+    <div class="sec">Tüm Sinyaller</div>
+
+    <div class="tbl-wrap">
+
+      <table class="mt">
+
+        <thead><tr><th>Daire</th><th>Tip</th><th>Öncelik</th><th>Mesaj</th><th>Aksiyon</th><th>İşlem</th></tr></thead>
+
+        <tbody id="stbody"><tr><td colspan="6" style="text-align:center;padding:60px;color:var(--tx3)">Yükleniyor...</td></tr></tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
+
+
+  <!-- GELİR -->
+
+  <div class="pane" id="tab-gelir">
+
+    <div class="sec">Gelir Tahmini</div>
+
+    <div class="rev-row" id="revrow">
+
+      <div class="loader"><div class="lring"></div><div class="ltxt">Yükleniyor...</div></div>
+
+    </div>
+
+    <div class="sec">Envanter</div>
+
+    <div class="tbl-wrap">
+
+      <table class="mt">
+
+        <thead><tr><th>Kalem</th><th>Adet</th><th>Durum</th></tr></thead>
+
+        <tbody id="invtbody"><tr><td colspan="3" style="text-align:center;padding:40px;color:var(--tx3)">Yükleniyor...</td></tr></tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
+
+
+  <!-- LOG -->
+
+  <div class="pane" id="tab-log">
+
+    <div class="kpi-row k3" id="lkpi"></div>
+
+    <div class="sec">İşlem Geçmişi</div>
+
+    <div style="background:var(--s1);border:1px solid var(--brd);border-radius:var(--r2);padding:28px">
+
+      <div class="log-list" id="loglist">
+
+        <div class="loader"><div class="lring"></div><div class="ltxt">Yükleniyor...</div></div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+
+</div>
+
+
+
+<script>
+
+// ── CONFIG ────────────────────────────────────────────────────
+
+var GAS_URL = localStorage.getItem('pms_gas_url') || '';
+
+
+
+function openModal() { document.getElementById('cfgModal').classList.add('open'); document.getElementById('apiUrl').value = GAS_URL; }
+
+function closeModal(){ document.getElementById('cfgModal').classList.remove('open'); }
+
+function saveConfig() {
+
+  GAS_URL = document.getElementById('apiUrl').value.trim();
+
+  localStorage.setItem('pms_gas_url', GAS_URL);
+
+  closeModal();
+
+  loadAll();
+
+}
+
+
+
+// ── AUTO-REFRESH ──────────────────────────────────────────────
+
+var cdVal=300, cdTmr=null;
+
+function startCD(){
+
+  cdVal=300; clearInterval(cdTmr);
+
+  cdTmr=setInterval(function(){
+
+    cdVal--;
+
+    var m=Math.floor(cdVal/60),s=cdVal%60;
+
+    E('cdown').textContent=m+':'+(s<10?'0':'')+s;
+
+    if(cdVal<=0){clearInterval(cdTmr);loadAll();}
+
+  },1000);
+
+}
+
+
+
+// ── HELPERS ───────────────────────────────────────────────────
+
+var ORDER=['Daire 1','Daire 2','Daire 3','Daire 4','Daire 5','Daire 6','Daire 7','Daire 8','Serdar-I Ekrem 1','Serdar-I Ekrem 2'];
+
+function oi(n){var i=ORDER.indexOf(n);return i===-1?99:i;}
+
+function E(id){return document.getElementById(id);}
+
+function K(lbl,val,cls,sub){return '<div class="kpi '+cls+'"><div class="kpi-lbl">'+lbl+'</div><div class="kpi-val">'+val+'</div><div class="kpi-sub">'+(sub||'')+'</div></div>';}
+
+function B(t,c){return '<span class="badge '+c+'">'+t+'</span>';}
+
+
+
+function sw(name,el){
+
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+
+  document.querySelectorAll('.pane').forEach(function(p){p.classList.remove('on');});
+
+  el.classList.add('active');
+
+  E('tab-'+name).classList.add('on');
+
+}
+
+
+
+function parseD(str){
+
+  if(!str)return null;
+
+  var p=str.split('.');
+
+  return p.length===3?new Date(+p[2],+p[1]-1,+p[0]):null;
+
+}
+
+
+
+function stInfo(st){
+
+  if(st.indexOf('GİRİŞ')>=0)    return{cls:'bg',lbl:'✅ GİRİŞ',   card:'cin'};
+
+  if(st.indexOf('ÇIKIŞ')>=0)    return{cls:'br',lbl:'🔴 ÇIKIŞ',   card:'cout'};
+
+  if(st.indexOf('KONAKLAMA')>=0)return{cls:'bb',lbl:'🔵 KONAKLAMA',card:'stay'};
+
+  if(st.indexOf('YAKLAŞAN')>=0) return{cls:'ba',lbl:'🟡 YAKLAŞAN', card:'upc'};
+
+  return{cls:'bm',lbl:'⬜ GEÇMİŞ',card:'past'};
+
+}
+
+
+
+function rBadge(r){
+
+  var m={KRİTİK:'bcrit',YÜKSEK:'bhigh',ORTA:'bmed',DÜŞÜK:'blow',BUGÜN:'bb',BİLGİ:'binfo'};
+
+  return B(r,m[r]||'bm');
+
+}
+
+
+
+function occBar(raw){
+
+  var n=parseInt((raw+'').replace(/[^0-9]/g,''))||0;
+
+  var col=n<40?'var(--crit)':n<65?'var(--high)':n<80?'var(--med)':'var(--low)';
+
+  return '<div class="obar"><div class="otrack"><div class="ofill" style="width:'+n+'%;background:'+col+'"></div></div><span class="opct" style="color:'+col+'">%'+n+'</span></div>';
+
+}
+
+
+
+function cleanBadge(st){
+
+  if(!st)return'';
+
+  return{
+
+    'Kirli':'<span class="cbdg cdirty">🔴 Kirli</span>',
+
+    'Hazır':'<span class="cbdg cready">✅ Hazır</span>',
+
+    'Temiz':'<span class="cbdg cok">🔵 Temiz</span>'
+
+  }[st]||'';
+
+}
+
+
+
+function doLog(apt,action){
+
+  var btn=event.target.closest('.act-btn');
+
+  if(btn)btn.classList.add('done');
+
+  fetchAPI('logAction',{apartment:apt,action:action},function(){});
+
+}
+
+
+
+// ── API FETCH ─────────────────────────────────────────────────
+
+function fetchAPI(fn, params, cb){
+
+  if(!GAS_URL){openModal();return;}
+
+  var url=GAS_URL+'?fn='+fn;
+
+  if(params){Object.keys(params).forEach(function(k){url+='&'+k+'='+encodeURIComponent(params[k]);});}
+
+  fetch(url,{method:'GET'})
+
+    .then(function(r){return r.json();})
+
+    .then(cb)
+
+    .catch(function(e){console.error(fn,e);});
+
+}
+
+
+
+function fetchData(cb){
+
+  if(!GAS_URL){openModal();return;}
+
+  fetch(GAS_URL+'?api=1')
+
+    .then(function(r){return r.json();})
+
+    .then(cb)
+
+    .catch(function(err){
+
+      E('dkpi').innerHTML='<div class="err-box"><strong>⚠️ Bağlantı hatası</strong>'+err.message+'<br><br>Sağ üstten "Ayarlar"a tıkla, GAS URL\'sini gir.</div>';
+
+    });
+
+}
+
+
+
+// ── WEEK STRIP ────────────────────────────────────────────────
+
+function renderWeek(rows){
+
+  var today=new Date();today.setHours(0,0,0,0);
+
+  var days=['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
+
+  var html='';
+
+  for(var i=0;i<7;i++){
+
+    var d=new Date(today);d.setDate(d.getDate()+i);
+
+    var ds=('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2);
+
+    var ev=rows.filter(function(r){var g=parseD(r[2]),o=parseD(r[3]);return g&&o&&d>=g&&d<o;});
+
+    var cin =ev.filter(function(r){return r[5]&&r[5].indexOf('GİRİŞ')>=0;});
+
+    var cout=ev.filter(function(r){return r[5]&&r[5].indexOf('ÇIKIŞ')>=0;});
+
+    var stay=ev.filter(function(r){return r[5]&&r[5].indexOf('KONAKLAMA')>=0;});
+
+    var dots='';
+
+    cin.forEach(function(){dots+='<div class="dot g"></div>';});
+
+    cout.forEach(function(){dots+='<div class="dot r"></div>';});
+
+    stay.forEach(function(){dots+='<div class="dot b"></div>';});
+
+    html+='<div class="wday'+(i===0?' today':'')+'">'+
+
+      '<div class="wd-n">'+days[d.getDay()]+'</div>'+
+
+      '<div class="wd-d">'+ds+'</div>'+
+
+      '<div class="wd-dots">'+(dots||'<span style="color:var(--tx3);font-size:10px">—</span>')+'</div>'+
+
+      '</div>';
+
+  }
+
+  E('wstrip').innerHTML=html;
+
+}
+
+
+
+// ── DASHBOARD ─────────────────────────────────────────────────
+
+function renderDash(rows,cleaning){
+
+  var c={gin:0,cik:0,kon:0,yak:0};
+
+  rows.forEach(function(r){
+
+    var st=(r[5]||'').toString();
+
+    if(st.indexOf('GİRİŞ')>=0)c.gin++;
+
+    else if(st.indexOf('ÇIKIŞ')>=0)c.cik++;
+
+    else if(st.indexOf('KONAKLAMA')>=0)c.kon++;
+
+    else if(st.indexOf('YAKLAŞAN')>=0)c.yak++;
+
+  });
+
+  E('dkpi').innerHTML=
+
+    K('Giriş',c.gin,'g','bugün')+K('Çıkış',c.cik,'r','bugün')+
+
+    K('Konaklama',c.kon,'b','daire')+K('Yaklaşan',c.yak,'a','rezervasyon')+
+
+    K('Toplam',rows.length,'p','rezervasyon');
+
+  E('tn0').textContent=rows.length;
+
+  renderWeek(rows);
+
+
+
+  var pri=['GİRİŞ','ÇIKIŞ','KONAKLAMA','YAKLAŞAN','GEÇMİŞ'];
+
+  var map={};
+
+  rows.forEach(function(r){var a=r[0];if(!a)return;if(!map[a])map[a]=[];map[a].push(r);});
+
+
+
+  var feat=[];
+
+  Object.keys(map).forEach(function(a){
+
+    var list=map[a],best=list[0];
+
+    list.forEach(function(r){
+
+      var pi=-1,bi=-1;
+
+      pri.forEach(function(p,idx){
+
+        if((r[5]||'').indexOf(p)>=0&&pi===-1)pi=idx;
+
+        if((best[5]||'').indexOf(p)>=0&&bi===-1)bi=idx;
+
+      });
+
+      if(pi!==-1&&(bi===-1||pi<bi))best=r;
+
+    });
+
+    feat.push(best);
+
+  });
+
+  feat.sort(function(a,b){return oi(a[0])-oi(b[0]);});
+
+
+
+  var html='';
+
+  feat.forEach(function(r){
+
+    var st=(r[5]||'').toString();
+
+    var si=stInfo(st);
+
+    var kal=(r[6]&&r[6]!=='—')?r[6]:'';
+
+    var cs=(cleaning&&cleaning[r[0]])||'';
+
+    var vip=(r[1]==='VIP')?'<span style="font-size:10px;background:rgba(167,139,250,.1);color:var(--purple);border:1px solid rgba(167,139,250,.2);padding:2px 7px;border-radius:4px;font-weight:700">VIP</span>':'';
+
+    html+=
+
+      '<div class="apt '+si.card+'">'+
+
+      '<div class="apt-top"><span class="apt-name">'+r[0]+'</span>'+vip+B(si.lbl,si.cls)+'</div>'+
+
+      '<div class="apt-dates"><span>'+( r[2]||'—')+'</span><span class="apt-arr">→</span><span>'+(r[3]||'—')+'</span><span class="apt-n">'+(r[4]||'—')+' gece</span></div>'+
+
+      '<div class="apt-bot"><span class="apt-guest">'+(r[1]||'')+'</span><span class="apt-kalan">'+kal+'</span></div>'+
+
+      '<div class="apt-foot">'+cleanBadge(cs)+'</div>'+
+
+      '</div>';
+
+  });
+
+  E('aptgrid').innerHTML=html||'<div style="color:var(--tx3);padding:20px">Rezervasyon bulunamadı.</div>';
+
+}
+
+
+
+// ── TODAY ─────────────────────────────────────────────────────
+
+function renderToday(data){
+
+  var ins=data.checkins||[],outs=data.checkouts||[],stay=data.staying||[],yarin=data.yarin||[];
+
+  E('tn1').textContent=outs.length+ins.length;
+
+  E('tkpi').innerHTML=
+
+    K('Çıkış',outs.length,'r','daire')+K('Giriş',ins.length,'g','daire')+
+
+    K('Konaklama',stay.length,'b','daire')+K('Yarın Çıkış',yarin.length,'a','daire');
+
+
+
+  function blk(title,rows,color){
+
+    var body=rows.length
+
+      ?'<table><thead><tr><th>Daire</th><th>Misafir</th><th>Giriş</th><th>Çıkış</th><th>Gece</th></tr></thead><tbody>'+
+
+        rows.map(function(r){return'<tr><td style="font-weight:700">'+r[0]+'</td><td style="color:var(--tx2)">'+( r[2]||'')+'</td><td style="font-family:var(--mono);color:var(--tx2)">'+(r[3]||'')+'</td><td style="font-family:var(--mono);color:var(--tx2)">'+(r[4]||'')+'</td><td style="text-align:center;font-family:var(--mono)">'+(r[5]||'')+'</td></tr>';}).join('')+
+
+        '</tbody></table>'
+
+      :'<div class="tblock-empty">Kayıt yok</div>';
+
+    return'<div class="tblock"><div class="tblock-hd '+color+'">'+title+'</div>'+body+'</div>';
+
+  }
+
+  E('tgrid').innerHTML=
+
+    blk('🔴 BUGÜN ÇIKIŞ — '+outs.length+' Daire',outs,'r')+
+
+    blk('✅ BUGÜN GİRİŞ — '+ins.length+' Daire',ins,'g')+
+
+    blk('🔵 KONAKLAMA — '+stay.length+' Daire',stay,'b')+
+
+    blk('🔔 YARIN ÇIKIŞ — '+yarin.length+' Daire',yarin,'a');
+
+}
+
+
+
+// ── VACANCY ───────────────────────────────────────────────────
+
+function renderVacancy(rows){
+
+  rows.sort(function(a,b){return oi(a[0])-oi(b[0]);});
+
+  E('tn2').textContent=rows.length;
+
+  var occs=rows.map(function(r){return parseInt((r[1]+'').replace(/[^0-9]/g,''))||0;});
+
+  var avg=occs.length?Math.round(occs.reduce(function(a,b){return a+b;},0)/occs.length):0;
+
+  var crit=rows.filter(function(r){return r[8]==='KRİTİK';}).length;
+
+  var high=rows.filter(function(r){return r[8]==='YÜKSEK';}).length;
+
+  var bos=rows.reduce(function(s,r){return s+(parseInt(r[2])||0);},0);
+
+
+
+  E('vkpi').innerHTML=K('Kritik',crit,'r','daire')+K('Yüksek Risk',high,'a','daire')+K('Ort. Doluluk','%'+avg,'b','60 günlük');
+
+  E('vsum').innerHTML=
+
+    '<div class="sb-item"><div class="sb-dot" style="background:var(--crit)"></div><span class="sb-lbl">Kritik:</span><span class="sb-val" style="color:var(--crit)">'+crit+'</span></div>'+
+
+    '<div class="sb-item"><div class="sb-dot" style="background:var(--high)"></div><span class="sb-lbl">Yüksek:</span><span class="sb-val" style="color:var(--high)">'+high+'</span></div>'+
+
+    '<div class="sb-item"><div class="sb-dot" style="background:var(--blue)"></div><span class="sb-lbl">Ort. Doluluk:</span><span class="sb-val" style="color:var(--blue)">%'+avg+'</span></div>'+
+
+    '<div class="sb-item"><div class="sb-dot" style="background:var(--tx3)"></div><span class="sb-lbl">Toplam Boş:</span><span class="sb-val">'+bos+' gün</span></div>';
+
+
+
+  var rm={KRİTİK:'bcrit',YÜKSEK:'bhigh',ORTA:'bmed',DÜŞÜK:'blow'};
+
+  var html='';
+
+  rows.forEach(function(r){
+
+    var sonraki=(r[3]&&r[4])?r[3]+' → '+r[4]:'—';
+
+    html+='<tr>'+
+
+      '<td style="font-weight:700">'+r[0]+'</td>'+
+
+      '<td style="min-width:110px">'+occBar(r[1])+'</td>'+
+
+      '<td style="text-align:center;font-family:var(--mono)">'+(r[2]||0)+'</td>'+
+
+      '<td style="font-family:var(--mono);font-size:12px;color:var(--tx2)">'+sonraki+'</td>'+
+
+      '<td style="text-align:center;font-family:var(--mono)">'+(r[6]||0)+'</td>'+
+
+      '<td style="text-align:center;font-family:var(--mono)">'+(r[7]||0)+'</td>'+
+
+      '<td>'+B(r[8]||'',rm[r[8]]||'bm')+'</td>'+
+
+      '<td style="font-size:12px;color:var(--tx2);max-width:280px">'+(r[9]||'')+'</td>'+
+
+      '</tr>';
+
+  });
+
+  E('vtbody').innerHTML=html||'<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--tx3)">Veri yok</td></tr>';
+
+}
+
+
+
+// ── SIGNALS ───────────────────────────────────────────────────
+
+function renderSignals(rows){
+
+  E('tn3').textContent=rows.length;
+
+  var bugun=rows.filter(function(r){return(r[2]||'')==='BUGÜN';}).length;
+
+  var kritik=rows.filter(function(r){return(r[2]||'')==='KRİTİK';}).length;
+
+  E('skpi').innerHTML=K('Toplam',rows.length,'p','sinyal')+K('Bugün',bugun,'b','aksiyon')+K('Kritik',kritik,'r','acil');
+
+
+
+  var html='';
+
+  rows.forEach(function(r){
+
+    var apt=r[0]||'',pri=r[2]||'',kat=r[1]||'',msg=r[3]||'',akt=r[4]||'';
+
+    var safeApt=apt.replace(/'/g,"\\'");
+
+    var btns='';
+
+    if(pri==='BUGÜN'||kat.indexOf('TEMİZLİK')>=0||kat.indexOf('ÇIKIŞ')>=0)
+
+      btns+='<button class="act-btn" onclick="doLog(\''+safeApt+'\',\'Temizlik tamamlandı\')">✅ Temizlendi</button>';
+
+    if(pri==='BUGÜN'&&kat.indexOf('GİRİŞ')>=0)
+
+      btns+='<button class="act-btn" onclick="doLog(\''+safeApt+'\',\'Karşılama yapıldı\')">👋 Karşılandı</button>';
+
+    if(pri==='KRİTİK'||akt.indexOf('fiyat')>=0||akt.indexOf('Fiyat')>=0)
+
+      btns+='<button class="act-btn" onclick="doLog(\''+safeApt+'\',\'Fiyat güncellendi\')">💰 Fiyat</button>';
+
+    html+='<tr>'+
+
+      '<td style="font-weight:700">'+apt+'</td>'+
+
+      '<td style="font-size:12px">'+B(kat,'bm')+'</td>'+
+
+      '<td>'+rBadge(pri)+'</td>'+
+
+      '<td style="font-size:12px;color:var(--tx2);max-width:360px">'+msg+'</td>'+
+
+      '<td style="font-size:12px">'+akt+'</td>'+
+
+      '<td style="white-space:nowrap">'+btns+'</td>'+
+
+      '</tr>';
+
+  });
+
+  E('stbody').innerHTML=html||'<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--tx3)">Sinyal yok</td></tr>';
+
+}
+
+
+
+// ── GELİR ─────────────────────────────────────────────────────
+
+function renderGelir(revenue, inventory){
+
+  E('tn5').textContent='€';
+
+  var rev=revenue||{};
+
+  E('revrow').innerHTML=
+
+    '<div class="rev-card"><div class="rev-lbl">Bu Ay Tahmini</div><div class="rev-val">'+(rev.this_month||0)+'€</div><div class="rev-sub">Tüm daireler</div></div>'+
+
+    '<div class="rev-card"><div class="rev-lbl">Gelecek Ay</div><div class="rev-val">'+(rev.next_month||0)+'€</div><div class="rev-sub">Onaylı rezervasyonlar</div></div>'+
+
+    '<div class="rev-card"><div class="rev-lbl">Bu Hafta</div><div class="rev-val">'+(rev.this_week||0)+'€</div><div class="rev-sub">7 günlük pencere</div></div>';
+
+
+
+  var inv=inventory||{};
+
+  var html='';
+
+  Object.keys(inv).forEach(function(k){
+
+    var v=inv[k];
+
+    var status='', statusCls='';
+
+    if(k.indexOf('Temiz')>=0||k.indexOf('temiz')>=0){
+
+      if(v===0){status='Stok Yok';statusCls='color:var(--red)';}
+
+      else if(v<5){status='Az';statusCls='color:var(--amber)';}
+
+      else{status='Yeterli';statusCls='color:var(--green)';}
+
+    }
+
+    html+='<tr>'+
+
+      '<td style="font-weight:600">'+k+'</td>'+
+
+      '<td style="font-family:var(--mono);font-size:14px;font-weight:700">'+v+'</td>'+
+
+      '<td style="font-size:12px;'+statusCls+'">'+status+'</td>'+
+
+      '</tr>';
+
+  });
+
+  E('invtbody').innerHTML=html||'<tr><td colspan="3" style="text-align:center;padding:40px;color:var(--tx3)">Envanter verisi yok. GAS\'ta setupEnvanter() çalıştır.</td></tr>';
+
+}
+
+
+
+// ── LOG ───────────────────────────────────────────────────────
+
+function renderLog(logs){
+
+  E('tn4').textContent=logs.length;
+
+  E('lkpi').innerHTML=
+
+    K('Toplam',logs.length,'p','kayıt')+
+
+    K('Bugün',0,'b','işlem')+
+
+    K('Son',logs.length>0?(logs[0][0]||'').split(' ').pop():'—','a','saat');
+
+
+
+  if(!logs.length){
+
+    E('loglist').innerHTML='<div style="text-align:center;padding:40px;color:var(--tx3)">Henüz kayıt yok.</div>';
+
+    return;
+
+  }
+
+  var dcMap={'Temizlik':'g','Karşılama':'g','Fiyat':'a','N8N':'b','n8n':'b'};
+
+  var html='';
+
+  logs.forEach(function(l,i){
+
+    var time=l[0]||'',src=l[1]||'',msg=l[2]||'';
+
+    var dc='b';
+
+    Object.keys(dcMap).forEach(function(k){if((msg+src).indexOf(k)>=0)dc=dcMap[k];});
+
+    var isLast=i===logs.length-1;
+
+    html+=
+
+      '<div class="log-item">'+
+
+      '<div class="log-time">'+(time.split(' ').pop()||time)+'</div>'+
+
+      '<div class="log-dc"><div class="log-dot '+dc+'"></div>'+(isLast?'':'<div class="log-line"></div>')+'</div>'+
+
+      '<div class="log-body"><div class="log-src">'+src+'</div><div class="log-msg">'+msg+'</div><div class="log-date">'+(time.split(' ')[0]||'')+'</div></div>'+
+
+      '</div>';
+
+  });
+
+  E('loglist').innerHTML=html;
+
+}
+
+
+
+// ── MAIN LOAD ─────────────────────────────────────────────────
+
+function loadAll(){
+
+  if(!GAS_URL){openModal();return;}
+
+  var btn=E('rbtn');
+
+  btn.classList.add('loading');
+
+  clearInterval(cdTmr);
+
+  E('cdown').textContent='Yükleniyor...';
+
+
+
+  fetch(GAS_URL+'?api=1')
+
+    .then(function(r){return r.json();})
+
+    .then(function(data){
+
+      renderDash(data.dashboard||[], data.cleaning||{});
+
+      renderToday(data.today||{});
+
+      renderVacancy(data.vacancy||[]);
+
+      renderSignals(data.signals||[]);
+
+      renderGelir(data.revenue||{}, data.inventory||{});
+
+      renderLog(data.logs||[]);
+
+
+
+      var now=new Date();
+
+      E('tdate').textContent=
+
+        now.toLocaleDateString('tr-TR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+
+
+        ' · '+now.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+
+
+
+      btn.classList.remove('loading');
+
+      startCD();
+
+    })
+
+    .catch(function(err){
+
+      btn.classList.remove('loading');
+
+      E('dkpi').innerHTML=
+
+        '<div class="err-box"><strong>⚠️ Bağlantı Hatası</strong>'+
+
+        'GAS URL\'ye ulaşılamadı. Ayarlar\'a tıkla ve URL\'yi kontrol et.<br><br>'+
+
+        '<code style="font-size:11px;color:var(--tx2)">'+err.message+'</code></div>';
+
+    });
+
+}
+
+
+
+// ── INIT ──────────────────────────────────────────────────────
+
+window.onload = function(){
+
+  if(!GAS_URL){
+
+    openModal();
+
+  } else {
+
+    loadAll();
+
+  }
+
+};
+
+setInterval(loadAll, 300000);
+
+</script>
+
+</body>
+
+</html>
