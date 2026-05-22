@@ -399,9 +399,18 @@ table.mt tbody tr:last-child td{border-bottom:none}
 .sc-prob{font-size:12px;color:#c0c0dc;padding-left:14px;position:relative;line-height:1.4}
 .sc-prob::before{content:'';position:absolute;left:4px;top:6px;width:4px;height:4px;border-radius:50%;background:var(--tx3)}
 .sc-divider{height:1px;background:var(--brd);margin:4px 0}
+.sc-recs-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.sc-recs-lbl{font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px}
+.sc-ai-btn{background:rgba(79,142,247,.1);color:var(--blue);border:1px solid rgba(79,142,247,.25);padding:3px 10px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:.15s}
+.sc-ai-btn:hover{background:rgba(79,142,247,.2)}
+.sc-ai-btn:disabled{opacity:.4;cursor:default}
+.sc-ai-btn.done{background:rgba(34,199,126,.1);color:var(--green);border-color:rgba(34,199,126,.25)}
+.sc-ai-loading{display:flex;align-items:center;gap:8px;padding:8px 0}
 .sc-recs{display:flex;flex-direction:column;gap:6px}
 .sc-rec{display:flex;gap:8px;font-size:12px;color:#c4c4de;line-height:1.5;align-items:flex-start}
 .sc-rec-n{color:var(--brand);font-family:var(--mono);font-size:10px;font-weight:600;min-width:16px;padding-top:3px;flex-shrink:0}
+/* 60-gün badge */
+.period-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--tx3);background:var(--s2);border:1px solid var(--brd);padding:3px 9px;border-radius:5px;font-family:var(--mono)}
 /* keep chips for vacancy table */
 .sc-chips{display:flex;flex-wrap:wrap;gap:6px}
 .sc-chip{background:var(--s3);color:var(--tx2);border:1px solid var(--brd2);padding:5px 14px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.2px}
@@ -448,6 +457,16 @@ table.mt tbody tr:last-child td{border-bottom:none}
       <input type="text" id="apiUrl" placeholder="https://script.google.com/macros/s/AKfycb.../exec">
 
       <div class="hint">Apps Script → Dağıt → Web App URL'si buraya gelecek</div>
+
+    </div>
+
+    <div class="field">
+
+      <label>OpenAI API Anahtarı (AI Önerileri)</label>
+
+      <input type="password" id="oaiKey" placeholder="sk-...">
+
+      <div class="hint">AI kart analizi için gerekli. Yalnızca bu tarayıcıda saklanır.</div>
 
     </div>
 
@@ -568,7 +587,10 @@ table.mt tbody tr:last-child td{border-bottom:none}
 
     <div class="sum-bar" id="vsum"></div>
 
-    <div class="sec">60 Günlük Boşluk Analizi</div>
+    <div class="sec" style="display:flex;align-items:center;gap:10px">
+      Boşluk Analizi
+      <span class="period-badge" id="vpperiod">Hesaplanıyor...</span>
+    </div>
 
     <div class="tbl-wrap">
 
@@ -592,7 +614,10 @@ table.mt tbody tr:last-child td{border-bottom:none}
 
     <div class="kpi-row k3" id="skpi"></div>
 
-    <div class="sec">Tüm Sinyaller</div>
+    <div class="sec" style="display:flex;align-items:center;gap:10px">
+      Daire Bazlı Öncelik Sırası
+      <span class="period-badge" id="spperiod">60 gün hesaplanıyor...</span>
+    </div>
 
     <div class="signals-grid" id="sgrid">
       <div class="loader"><div class="lring"></div><div class="ltxt">Yükleniyor...</div></div>
@@ -662,24 +687,24 @@ table.mt tbody tr:last-child td{border-bottom:none}
 
 // ── CONFIG ────────────────────────────────────────────────────
 
-var GAS_URL = localStorage.getItem('pms_gas_url') || '';
+var GAS_URL    = localStorage.getItem('pms_gas_url')    || '';
+var OPENAI_KEY = localStorage.getItem('pms_openai_key') || '';
 
-
-
-function openModal() { document.getElementById('cfgModal').classList.add('open'); document.getElementById('apiUrl').value = GAS_URL; }
+function openModal(){
+  document.getElementById('cfgModal').classList.add('open');
+  document.getElementById('apiUrl').value = GAS_URL;
+  document.getElementById('oaiKey').value = OPENAI_KEY;
+}
 
 function closeModal(){ document.getElementById('cfgModal').classList.remove('open'); }
 
-function saveConfig() {
-
-  GAS_URL = document.getElementById('apiUrl').value.trim();
-
-  localStorage.setItem('pms_gas_url', GAS_URL);
-
+function saveConfig(){
+  GAS_URL    = document.getElementById('apiUrl').value.trim();
+  OPENAI_KEY = document.getElementById('oaiKey').value.trim();
+  localStorage.setItem('pms_gas_url',    GAS_URL);
+  localStorage.setItem('pms_openai_key', OPENAI_KEY);
   closeModal();
-
   loadAll();
-
 }
 
 
@@ -811,6 +836,54 @@ function buildRecs(occ, bosGun, orphan){
   }
 
   return r.filter(function(x,i){return r.indexOf(x)===i;}).slice(0,7);
+}
+
+function analyzeApt(btn, recsId, apt, occ, bosGun, orphan, types){
+  if(!OPENAI_KEY){ openModal(); return; }
+  var el=E(recsId); if(!el) return;
+
+  btn.disabled=true; btn.textContent='Analiz ediliyor...';
+  el.innerHTML='<div class="sc-ai-loading"><div class="lring" style="width:18px;height:18px;border-width:2px"></div><span style="font-size:12px;color:var(--tx3)">GPT analiz ediyor...</span></div>';
+
+  var today=new Date();
+  var fut=new Date(today); fut.setDate(today.getDate()+60);
+  var fmt=function(d){return d.toLocaleDateString('tr-TR',{day:'numeric',month:'long'});};
+  var range=fmt(today)+' – '+fmt(fut);
+
+  var prompt=
+    'Sen bir Airbnb property manager danışmanısın. Aşağıdaki daire için '+range+
+    ' tarih aralığındaki doluluk verisini analiz et ve TÜRKÇE olarak 5-6 somut, uygulanabilir öneri ver.\n\n'+
+    'Daire: '+apt+'\n'+
+    'Doluluk oranı: %'+occ+'\n'+
+    'Boş gün sayısı (60 gün penceresi): '+bosGun+' gün\n'+
+    'Kısa rezervasyon aralıkları (1-2 gece): '+orphan+' adet\n'+
+    'Tespit edilen sorunlar: '+(types.join(', ')||'Boşluk')+'\n\n'+
+    'Her öneri numaralı olsun. Somut rakamlar kullan (%15 indir, minimum 2 geceyi 1\'e düşür gibi). '+
+    'Teknik terim kullanma. Her öneri maksimum 2 cümle.';
+
+  fetch('https://api.openai.com/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+OPENAI_KEY},
+    body:JSON.stringify({model:'gpt-4o-mini',messages:[{role:'user',content:prompt}],max_tokens:600,temperature:0.7})
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var text=(data.choices&&data.choices[0])?data.choices[0].message.content:'Yanıt alınamadı.';
+    var lines=text.split('\n').filter(function(l){return l.trim();});
+    var html=lines.map(function(line){
+      var m=line.match(/^(\d+)[.)]\s*(.*)/);
+      if(m)return'<div class="sc-rec"><span class="sc-rec-n">'+m[1]+'.</span><span>'+m[2]+'</span></div>';
+      if(line.trim().startsWith('-')||line.trim().startsWith('•'))
+        return'<div class="sc-rec"><span class="sc-rec-n">—</span><span>'+line.replace(/^[-•]\s*/,'')+'</span></div>';
+      return'<div class="sc-rec" style="color:var(--tx3)"><span>'+line+'</span></div>';
+    }).join('');
+    el.innerHTML=html;
+    btn.disabled=false; btn.textContent='Yenile'; btn.classList.add('done');
+  })
+  .catch(function(err){
+    el.innerHTML='<div style="color:var(--red);font-size:12px">Bağlantı hatası: '+err.message+'</div>';
+    btn.disabled=false; btn.textContent='Tekrar Dene';
+  });
 }
 
 function sw(name,el){
@@ -1161,6 +1234,11 @@ function renderVacancy(rows){
 
   E('tn2').textContent=rows.length;
 
+  // 60-gün pencere tarihi göster
+  var vt0=new Date(),vt1=new Date(vt0);vt1.setDate(vt0.getDate()+60);
+  var vfmt=function(d){return d.toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'});};
+  if(E('vpperiod'))E('vpperiod').textContent=vfmt(vt0)+' – '+vfmt(vt1);
+
   var occs=rows.map(function(r){return parseInt((r[1]+'').replace(/[^0-9]/g,''))||0;});
 
   var avg=occs.length?Math.round(occs.reduce(function(a,b){return a+b;},0)/occs.length):0;
@@ -1263,11 +1341,20 @@ function renderSignals(rows){
   var yCnt=cards.filter(function(c){return c.pri==='YÜKSEK';}).length;
   E('skpi').innerHTML=K('Daire',cards.length,'p','analiz')+K('Kritik',kCnt,'r','müdahale')+K('Yüksek',yCnt,'a','öncelik');
 
+  // 60-günlük pencere bilgisi
+  var t0=new Date(),t1=new Date(t0);t1.setDate(t0.getDate()+60);
+  var fmtD=function(d){return d.toLocaleDateString('tr-TR',{day:'numeric',month:'short'});};
+  var periodStr=fmtD(t0)+' – '+fmtD(t1)+' (60 gün)';
+  E('spperiod').textContent=periodStr;
+
   if(!cards.length){E('sgrid').innerHTML='<div style="color:var(--tx3);padding:40px;text-align:center">Sinyal bulunamadı.</div>';return;}
 
   var html='';
-  cards.forEach(function(c){
+  cards.forEach(function(c,idx){
     var sc=c.score>=72?'var(--crit)':c.score>=52?'var(--high)':c.score>=32?'var(--med)':'var(--low)';
+    var recsId='recs-'+idx;
+    var safeApt=c.apt.replace(/'/g,"\\'");
+    var typesStr=JSON.stringify(c.types);
 
     var mets=[];
     if(c.bosGun)mets.push(c.bosGun+' boş gün');
@@ -1281,6 +1368,8 @@ function renderSignals(rows){
       return '<div class="sc-rec"><span class="sc-rec-n">'+(i+1)+'.</span><span>'+rec+'</span></div>';
     }).join('');
 
+    var aiBtn='<button class="sc-ai-btn" onclick="analyzeApt(this,\''+recsId+'\',\''+safeApt+'\','+c.occ+','+c.bosGun+','+c.orphan+','+typesStr+')">GPT Analizi</button>';
+
     html+=
       '<div class="sc '+priCls(c.pri)+'">'+
         '<div class="sc-head">'+
@@ -1290,9 +1379,15 @@ function renderSignals(rows){
             priBadge(c.pri)+
           '</div>'+
         '</div>'+
-        (mets.length?'<div class="sc-metrics">'+mets.map(function(m){return'<span class="sc-met">'+m+'</span>';}).join('')+'</div>':'')+
+        (mets.length?
+          '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">'+
+            '<div class="sc-metrics">'+mets.map(function(m){return'<span class="sc-met">'+m+'</span>';}).join('')+'</div>'+
+            '<span style="font-size:10px;color:var(--tx3);font-family:var(--mono);margin-left:4px">önümüzdeki 60 gün</span>'+
+          '</div>':'') +
         (probHtml?'<div class="sc-prob-list">'+probHtml+'</div>':'')+
-        (recsHtml?'<div class="sc-divider"></div><div class="sc-recs">'+recsHtml+'</div>':'')+
+        '<div class="sc-divider"></div>'+
+        '<div class="sc-recs-hd"><span class="sc-recs-lbl">Öneriler</span>'+aiBtn+'</div>'+
+        '<div id="'+recsId+'" class="sc-recs">'+recsHtml+'</div>'+
       '</div>';
   });
 
