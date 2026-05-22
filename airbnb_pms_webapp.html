@@ -398,11 +398,13 @@ table.mt tbody tr:last-child td{border-bottom:none}
 .sc-prob-list{display:flex;flex-direction:column;gap:5px}
 .sc-prob{font-size:12px;color:#c0c0dc;padding-left:14px;position:relative;line-height:1.4}
 .sc-prob::before{content:'';position:absolute;left:4px;top:6px;width:4px;height:4px;border-radius:50%;background:var(--tx3)}
-.sc-divider{height:1px;background:var(--brd);margin:2px 0}
+.sc-divider{height:1px;background:var(--brd);margin:4px 0}
+.sc-recs{display:flex;flex-direction:column;gap:6px}
+.sc-rec{display:flex;gap:8px;font-size:12px;color:#c4c4de;line-height:1.5;align-items:flex-start}
+.sc-rec-n{color:var(--brand);font-family:var(--mono);font-size:10px;font-weight:600;min-width:16px;padding-top:3px;flex-shrink:0}
+/* keep chips for vacancy table */
 .sc-chips{display:flex;flex-wrap:wrap;gap:6px}
 .sc-chip{background:var(--s3);color:var(--tx2);border:1px solid var(--brd2);padding:5px 14px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.2px}
-.sc.crit .sc-chip{color:var(--tx);border-color:rgba(240,79,94,.3)}
-.sc.high .sc-chip{color:var(--tx)}
 
 /* Vacancy table action chips */
 .v-chips{display:flex;flex-wrap:wrap;gap:5px}
@@ -755,6 +757,60 @@ function aktChips(txt){
   if(t.indexOf('haftalık')>=0||t.indexOf('weekly')>=0)chips.push('Haftalık İndirim');
   if(t.indexOf('last-minute')>=0)chips.push('Son Dakika');
   return chips.filter(function(c,i){return chips.indexOf(c)===i;});
+}
+
+function buildRecs(occ, bosGun, orphan){
+  var r=[];
+
+  // Doluluk bazlı
+  if(occ<15){
+    r.push('Fiyatı acilen %25-30 düşür — %'+occ+' doluluk kritik seviyede');
+    r.push('Minimum geceyi 1\'e indir, tüm kanalları aç');
+    r.push('Same-day kanalının aktif olduğunu kontrol et');
+  } else if(occ<30){
+    r.push('Fiyatı %15-20 düşür — '+bosGun+' gün doldurulamadı');
+    r.push('Minimum geceyi 2\'den 1\'e indir');
+    r.push('Haftalık konaklama için özel indirim paketi tanımla');
+  } else if(occ<50){
+    r.push('Son dakika fiyatı -%15 uygula (önümüzdeki 7-14 gün için)');
+    r.push('Hafta içi günler için tarih bazlı indirim ekle');
+    r.push('OTA profilinde yeni sezon fotoğrafı yükle, görünürlüğü artır');
+  } else if(occ<70){
+    r.push('Boş hafta içi günleri için kademeli -%10 uygula');
+    r.push('Minimum gece esnekliği: 2-3 gecelik talepleri değerlendir');
+  }
+
+  // Kısa aralık (orphan gap) bazlı
+  if(orphan===1){
+    r.push('1 adet kısa rezervasyon aralığı var — same-day kanalını mutlaka açık tut');
+    r.push('1-2 gecelik aralık için last-minute -%20 tanımla');
+  } else if(orphan>=2){
+    r.push(orphan+' kısa rezervasyon aralığı doldurulamıyor — min-stay 1\'e indir');
+    r.push('Tüm kısa aralıklar için same-day + last-minute -%20 aktif et');
+    r.push('Aralıkları kapamak için özel haftalık fiyat takvimi oluştur');
+  }
+
+  // Boş gün sayısı bazlı
+  if(bosGun>50){
+    r.push(bosGun+' gün boş: haftalık / aylık kiralama modelini değerlendir');
+    r.push('Fiyat takvimini tüm boş dönemler için sıfırdan güncelle');
+  } else if(bosGun>35){
+    r.push(bosGun+' günlük boşluk: OTA\'da listing güncelle, yeni fotoğraf ekle');
+    r.push('Yakın tarih için 7-günlük özel kampanya fiyatı tanımla');
+  } else if(bosGun>20){
+    r.push('Önümüzdeki '+bosGun+' günü doldurmak için last-minute kampanyası başlat');
+    r.push('Airbnb akıllı fiyatlandırmayı kontrol et, rakip fiyatlarla kıyasla');
+  } else if(bosGun>7){
+    r.push('Kısa vadeli '+bosGun+' günlük boşluk: same-day ve anlık indirimle doldur');
+  }
+
+  // Her zaman geçerli genel öneriler (sadece boşluk varsa)
+  if(bosGun>0 && r.length<4){
+    r.push('Airbnb Misafir Favorileri rozetini kontrol et, eksikse geliştir');
+    r.push('Yorumlara yanıt oranını artır — sıralama puanını etkiler');
+  }
+
+  return r.filter(function(x,i){return r.indexOf(x)===i;}).slice(0,7);
 }
 
 function sw(name,el){
@@ -1131,7 +1187,7 @@ function renderVacancy(rows){
     var sonraki=(r[3]&&r[4])?r[3]+' → '+r[4]:'—';
     var pri=calcPri(r[1]);
     var orphanVal=(r[7]||0);
-    var atilStr=orphanVal>0?orphanVal+' atıl aralık':'—';
+    var atilStr=orphanVal>0?orphanVal+' kısa aralık':'—';
     var rowCls=pri==='KRİTİK'?' class="tr-crit"':'';
     var chipList=aktChips(r[9]||'');
     var aktHtml=chipList.length
@@ -1190,7 +1246,7 @@ function renderSignals(rows){
 
     occ=occ||0; bosGun=bosGun||0;
 
-    // Risk skoru: doluluk eksikliği + atıl aralık + boş gün bonusu
+    // Risk skoru: doluluk eksikliği + kısa aralık + boş gün bonusu
     var score=Math.max(5,100-occ);
     if(orphan>0)score=Math.min(97,score+8+orphan*3);
     if(bosGun>35)score=Math.min(97,score+8);
@@ -1215,11 +1271,15 @@ function renderSignals(rows){
 
     var mets=[];
     if(c.bosGun)mets.push(c.bosGun+' boş gün');
-    if(c.orphan)mets.push(c.orphan+' atıl aralık');
+    if(c.orphan)mets.push(c.orphan+' kısa aralık');
     if(c.occ)mets.push('%'+c.occ+' doluluk');
 
     var probHtml=c.types.map(function(t){return'<div class="sc-prob">'+t+'</div>';}).join('');
-    var chipHtml=c.chips.map(function(ch){return'<span class="sc-chip">'+ch+'</span>';}).join('');
+
+    var recs=buildRecs(c.occ,c.bosGun,c.orphan);
+    var recsHtml=recs.map(function(rec,i){
+      return '<div class="sc-rec"><span class="sc-rec-n">'+(i+1)+'.</span><span>'+rec+'</span></div>';
+    }).join('');
 
     html+=
       '<div class="sc '+priCls(c.pri)+'">'+
@@ -1232,7 +1292,7 @@ function renderSignals(rows){
         '</div>'+
         (mets.length?'<div class="sc-metrics">'+mets.map(function(m){return'<span class="sc-met">'+m+'</span>';}).join('')+'</div>':'')+
         (probHtml?'<div class="sc-prob-list">'+probHtml+'</div>':'')+
-        (chipHtml?'<div class="sc-divider"></div><div class="sc-chips">'+chipHtml+'</div>':'')+
+        (recsHtml?'<div class="sc-divider"></div><div class="sc-recs">'+recsHtml+'</div>':'')+
       '</div>';
   });
 
