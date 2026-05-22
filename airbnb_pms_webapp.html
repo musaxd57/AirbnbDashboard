@@ -379,6 +379,20 @@ table.mt tbody tr:last-child td{border-bottom:none}
 }
 .err-box strong{display:block;margin-bottom:6px;font-size:14px}
 
+/* ── SIGNALS CARDS ───────────────────────────────────────── */
+.signals-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:12px}
+.sc{background:var(--s1);border:1px solid var(--brd);border-radius:var(--r2);padding:16px 18px;display:flex;flex-direction:column;gap:10px;border-left:3px solid var(--brd2)}
+.sc.crit{border-left-color:var(--crit)}
+.sc.high{border-left-color:var(--high)}
+.sc.med{border-left-color:var(--med)}
+.sc.low{border-left-color:var(--low)}
+.sc-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sc-apt{font-weight:600;font-size:14px;color:var(--tx)}
+.sc-type{font-size:10px;font-weight:500;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px}
+.sc-msg{font-size:12px;color:var(--tx2);line-height:1.55}
+.sc-akt{font-size:12px;color:var(--tx3);padding-top:2px;font-style:italic}
+.sc-foot{display:flex;gap:6px;align-items:center;padding-top:8px;border-top:1px solid var(--brd)}
+
 /* ── RESPONSIVE ──────────────────────────────────────────── */
 @media(max-width:1100px){.k5{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:900px){
@@ -539,9 +553,9 @@ table.mt tbody tr:last-child td{border-bottom:none}
 
       <table class="mt">
 
-        <thead><tr><th>Daire</th><th>Doluluk</th><th>Boş Gün</th><th>Sonraki Boş</th><th>En Uzun</th><th>Orphan</th><th>Risk</th><th>Aksiyon</th></tr></thead>
+        <thead><tr><th>Daire</th><th>Doluluk</th><th>Boş Gün</th><th>Sonraki Boş</th><th>Atıl Aralık</th><th>Öncelik</th><th>Aksiyon</th></tr></thead>
 
-        <tbody id="vtbody"><tr><td colspan="8" style="text-align:center;padding:60px;color:var(--tx3)">Yükleniyor...</td></tr></tbody>
+        <tbody id="vtbody"><tr><td colspan="7" style="text-align:center;padding:60px;color:var(--tx3)">Yükleniyor...</td></tr></tbody>
 
       </table>
 
@@ -559,16 +573,8 @@ table.mt tbody tr:last-child td{border-bottom:none}
 
     <div class="sec">Tüm Sinyaller</div>
 
-    <div class="tbl-wrap">
-
-      <table class="mt">
-
-        <thead><tr><th>Daire</th><th>Tip</th><th>Öncelik</th><th>Mesaj</th><th>Aksiyon</th><th>İşlem</th></tr></thead>
-
-        <tbody id="stbody"><tr><td colspan="6" style="text-align:center;padding:60px;color:var(--tx3)">Yükleniyor...</td></tr></tbody>
-
-      </table>
-
+    <div class="signals-grid" id="sgrid">
+      <div class="loader"><div class="lring"></div><div class="ltxt">Yükleniyor...</div></div>
     </div>
 
   </div>
@@ -693,7 +699,33 @@ function K(lbl,val,cls,sub){return '<div class="kpi '+cls+'"><div class="kpi-acc
 
 function B(t,c){return '<span class="badge '+c+'">'+t+'</span>';}
 
+function fmtTime(str){
+  if(!str)return'—';
+  try{var d=new Date(str);if(!isNaN(d.getTime()))return('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);}catch(e){}
+  var p=str.split(/[T\s]/);return(p[1]||'').substring(0,5)||str;
+}
 
+function fmtDate(str){
+  if(!str)return'—';
+  try{var d=new Date(str);if(!isNaN(d.getTime()))return('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+'.'+d.getFullYear();}catch(e){}
+  return str.split('T')[0]||str;
+}
+
+function fmtType(t){
+  var map={'BOŞLUK_UYARISI':'Boşluk Uyarısı','BOŞ_GÜN_FIRSATI':'Boş Gün Fırsatı','TEMİZLİK_GEREKLİ':'Temizlik Gerekli','ORPHAN_GAP':'Atıl Aralık','DOLULUK_DÜŞÜK':'Doluluk Düşük','GELİR_UYARISI':'Gelir Uyarısı','FİYAT_ÖNERİSİ':'Fiyat Önerisi'};
+  return map[t]||(t||'').replace(/_/g,' ').toLowerCase().replace(/^\w/,function(c){return c.toUpperCase();});
+}
+
+function calcPri(occ){
+  var n=parseInt((occ+'').replace(/[^0-9]/g,''))||0;
+  if(n<30)return'KRİTİK';
+  if(n<50)return'YÜKSEK';
+  if(n<70)return'ORTA';
+  return'İYİ';
+}
+
+function priCls(p){return{KRİTİK:'crit',YÜKSEK:'high',ORTA:'med',İYİ:'low'}[p]||'';}
+function priBadge(p){return B(p,{KRİTİK:'bcrit',YÜKSEK:'bhigh',ORTA:'bmed',İYİ:'blow'}[p]||'bm');}
 
 function sw(name,el){
 
@@ -1047,59 +1079,42 @@ function renderVacancy(rows){
 
   var avg=occs.length?Math.round(occs.reduce(function(a,b){return a+b;},0)/occs.length):0;
 
-  var crit=rows.filter(function(r){return r[8]==='KRİTİK';}).length;
+  // Öncelikleri doluluk oranından hesapla
+  var kritik=rows.filter(function(r){return calcPri(r[1])==='KRİTİK';}).length;
+  var yuksek=rows.filter(function(r){return calcPri(r[1])==='YÜKSEK';}).length;
 
-  var high=rows.filter(function(r){return r[8]==='YÜKSEK';}).length;
+  // Ortalama boş gün / daire
+  var totalBos=rows.reduce(function(s,r){return s+(parseInt(r[2])||0);},0);
+  var avgBos=rows.length?Math.round(totalBos/rows.length):0;
 
-  var bos=rows.reduce(function(s,r){return s+(parseInt(r[2])||0);},0);
-
-
-
-  E('vkpi').innerHTML=K('Kritik',crit,'r','daire')+K('Yüksek Risk',high,'a','daire')+K('Ort. Doluluk','%'+avg,'b','60 günlük');
+  E('vkpi').innerHTML=K('Kritik',kritik,'r','daire')+K('Yüksek Risk',yuksek,'a','daire')+K('Ort. Doluluk','%'+avg,'b','60 günlük');
 
   E('vsum').innerHTML=
-
-    '<div class="sb-item"><div class="sb-dot" style="background:var(--crit)"></div><span class="sb-lbl">Kritik:</span><span class="sb-val" style="color:var(--crit)">'+crit+'</span></div>'+
-
-    '<div class="sb-item"><div class="sb-dot" style="background:var(--high)"></div><span class="sb-lbl">Yüksek:</span><span class="sb-val" style="color:var(--high)">'+high+'</span></div>'+
-
+    '<div class="sb-item"><div class="sb-dot" style="background:var(--crit)"></div><span class="sb-lbl">Kritik:</span><span class="sb-val" style="color:var(--crit)">'+kritik+'</span></div>'+
+    '<div class="sb-item"><div class="sb-dot" style="background:var(--high)"></div><span class="sb-lbl">Yüksek:</span><span class="sb-val" style="color:var(--high)">'+yuksek+'</span></div>'+
     '<div class="sb-item"><div class="sb-dot" style="background:var(--blue)"></div><span class="sb-lbl">Ort. Doluluk:</span><span class="sb-val" style="color:var(--blue)">%'+avg+'</span></div>'+
-
-    '<div class="sb-item"><div class="sb-dot" style="background:var(--tx3)"></div><span class="sb-lbl">Toplam Boş:</span><span class="sb-val">'+bos+' gün</span></div>';
-
-
-
-  var rm={KRİTİK:'bcrit',YÜKSEK:'bhigh',ORTA:'bmed',DÜŞÜK:'blow'};
+    '<div class="sb-item"><div class="sb-dot" style="background:var(--tx3)"></div><span class="sb-lbl">Ort. Boş / Daire:</span><span class="sb-val">'+avgBos+' gün</span></div>';
 
   var html='';
 
   rows.forEach(function(r){
-
     var sonraki=(r[3]&&r[4])?r[3]+' → '+r[4]:'—';
+    var pri=calcPri(r[1]);
+    var orphanVal=(r[7]||0);
+    var atilStr=orphanVal>0?orphanVal+' atıl aralık':'—';
 
     html+='<tr>'+
-
-      '<td style="font-weight:700">'+r[0]+'</td>'+
-
+      '<td style="font-weight:600">'+r[0]+'</td>'+
       '<td style="min-width:110px">'+occBar(r[1])+'</td>'+
-
       '<td style="text-align:center;font-family:var(--mono)">'+(r[2]||0)+'</td>'+
-
       '<td style="font-family:var(--mono);font-size:12px;color:var(--tx2)">'+sonraki+'</td>'+
-
-      '<td style="text-align:center;font-family:var(--mono)">'+(r[6]||0)+'</td>'+
-
-      '<td style="text-align:center;font-family:var(--mono)">'+(r[7]||0)+'</td>'+
-
-      '<td>'+B(r[8]||'',rm[r[8]]||'bm')+'</td>'+
-
-      '<td style="font-size:12px;color:var(--tx2);max-width:280px">'+(r[9]||'')+'</td>'+
-
+      '<td style="font-size:12px;color:var(--tx3)">'+atilStr+'</td>'+
+      '<td>'+priBadge(pri)+'</td>'+
+      '<td style="font-size:12px;color:var(--tx2);max-width:260px">'+(r[9]||'')+'</td>'+
       '</tr>';
-
   });
 
-  E('vtbody').innerHTML=html||'<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--tx3)">Veri yok</td></tr>';
+  E('vtbody').innerHTML=html||'<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--tx3)">Veri yok</td></tr>';
 
 }
 
@@ -1111,55 +1126,44 @@ function renderSignals(rows){
 
   E('tn3').textContent=rows.length;
 
-  var bugun=rows.filter(function(r){return(r[2]||'')==='BUGÜN';}).length;
+  var kritik=rows.filter(function(r){return(r[2]||'').indexOf('KRİTİK')>=0;}).length;
+  var bugun=rows.filter(function(r){return(r[2]||'').indexOf('BUGÜN')>=0;}).length;
+  var yuksek=rows.filter(function(r){return(r[2]||'').indexOf('YÜKSEK')>=0;}).length;
 
-  var kritik=rows.filter(function(r){return(r[2]||'')==='KRİTİK';}).length;
+  E('skpi').innerHTML=K('Toplam',rows.length,'p','sinyal')+K('Kritik',kritik,'r','acil')+K('Yüksek',yuksek,'a','öncelik');
 
-  E('skpi').innerHTML=K('Toplam',rows.length,'p','sinyal')+K('Bugün',bugun,'b','aksiyon')+K('Kritik',kritik,'r','acil');
-
-
+  if(!rows.length){E('sgrid').innerHTML='<div style="color:var(--tx3);padding:40px;text-align:center">Sinyal yok.</div>';return;}
 
   var html='';
 
   rows.forEach(function(r){
-
-    var apt=r[0]||'',pri=r[2]||'',kat=r[1]||'',msg=r[3]||'',akt=r[4]||'';
-
+    var apt=r[0]||'',katRaw=r[1]||'',pri=r[2]||'',msg=r[3]||'',akt=r[4]||'';
     var safeApt=apt.replace(/'/g,"\\'");
+    var kat=fmtType(katRaw);
+    var cls=priCls(pri);
 
     var btns='';
+    if(katRaw.indexOf('TEMİZLİK')>=0||pri==='BUGÜN')
+      btns+='<button class="act-btn" onclick="doLog(\''+safeApt+'\',\'Temizlik tamamlandı\')">Temizlendi</button>';
+    if(pri==='BUGÜN'&&katRaw.indexOf('GİRİŞ')>=0)
+      btns+='<button class="act-btn" onclick="doLog(\''+safeApt+'\',\'Karşılama yapıldı\')">Karşılandı</button>';
+    if(akt.toLowerCase().indexOf('fiyat')>=0||pri==='KRİTİK')
+      btns+='<button class="act-btn" onclick="doLog(\''+safeApt+'\',\'Fiyat güncellendi\')">Fiyat Güncelle</button>';
 
-    if(pri==='BUGÜN'||kat.indexOf('TEMİZLİK')>=0||kat.indexOf('ÇIKIŞ')>=0)
-
-      btns+='<button class="act-btn" onclick="doLog(\''+safeApt+'\',\'Temizlik tamamlandı\')">✅ Temizlendi</button>';
-
-    if(pri==='BUGÜN'&&kat.indexOf('GİRİŞ')>=0)
-
-      btns+='<button class="act-btn" onclick="doLog(\''+safeApt+'\',\'Karşılama yapıldı\')">👋 Karşılandı</button>';
-
-    if(pri==='KRİTİK'||akt.indexOf('fiyat')>=0||akt.indexOf('Fiyat')>=0)
-
-      btns+='<button class="act-btn" onclick="doLog(\''+safeApt+'\',\'Fiyat güncellendi\')">💰 Fiyat</button>';
-
-    html+='<tr>'+
-
-      '<td style="font-weight:700">'+apt+'</td>'+
-
-      '<td style="font-size:12px">'+B(kat,'bm')+'</td>'+
-
-      '<td>'+rBadge(pri)+'</td>'+
-
-      '<td style="font-size:12px;color:var(--tx2);max-width:360px">'+msg+'</td>'+
-
-      '<td style="font-size:12px">'+akt+'</td>'+
-
-      '<td style="white-space:nowrap">'+btns+'</td>'+
-
-      '</tr>';
-
+    html+=
+      '<div class="sc '+cls+'">'+
+      '<div class="sc-head">'+
+        '<span class="sc-apt">'+apt+'</span>'+
+        priBadge(pri)+
+      '</div>'+
+      '<div class="sc-type">'+kat+'</div>'+
+      (msg?'<div class="sc-msg">'+msg+'</div>':'')+
+      (akt?'<div class="sc-akt">→ '+akt+'</div>':'')+
+      (btns?'<div class="sc-foot">'+btns+'</div>':'')+
+      '</div>';
   });
 
-  E('stbody').innerHTML=html||'<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--tx3)">Sinyal yok</td></tr>';
+  E('sgrid').innerHTML=html;
 
 }
 
@@ -1227,13 +1231,16 @@ function renderLog(logs){
 
   E('tn4').textContent=logs.length;
 
+  var todayStr=new Date().toISOString().split('T')[0];
+  var todayCnt=logs.filter(function(l){return(l[0]||'').indexOf(todayStr)>=0;}).length;
+
   E('lkpi').innerHTML=
 
     K('Toplam',logs.length,'p','kayıt')+
 
-    K('Bugün',0,'b','işlem')+
+    K('Bugün',todayCnt,'b','işlem')+
 
-    K('Son',logs.length>0?(logs[0][0]||'').split(' ').pop():'—','a','saat');
+    K('Son',logs.length>0?fmtTime(logs[0][0]):'—','a','saat');
 
 
 
@@ -1263,11 +1270,11 @@ function renderLog(logs){
 
       '<div class="log-item">'+
 
-      '<div class="log-time">'+(time.split(' ').pop()||time)+'</div>'+
+      '<div class="log-time">'+fmtTime(time)+'</div>'+
 
       '<div class="log-dc"><div class="log-dot '+dc+'"></div>'+(isLast?'':'<div class="log-line"></div>')+'</div>'+
 
-      '<div class="log-body"><div class="log-src">'+src+'</div><div class="log-msg">'+msg+'</div><div class="log-date">'+(time.split(' ')[0]||'')+'</div></div>'+
+      '<div class="log-body"><div class="log-src">'+src+'</div><div class="log-msg">'+msg+'</div><div class="log-date">'+fmtDate(time)+'</div></div>'+
 
       '</div>';
 
