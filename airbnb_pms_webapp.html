@@ -414,6 +414,23 @@ table.mt tbody tr:last-child td{border-bottom:none}
 /* keep chips for vacancy table */
 .sc-chips{display:flex;flex-wrap:wrap;gap:6px}
 .sc-chip{background:var(--s3);color:var(--tx2);border:1px solid var(--brd2);padding:5px 14px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.2px}
+/* ── Trend badges ───────────────────────────────────────────── */
+.trend-badge{display:inline-flex;align-items:center;font-size:10px;font-family:var(--mono);font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.3px}
+.trend-up{background:rgba(34,199,126,.12);color:var(--green);border:1px solid rgba(34,199,126,.22)}
+.trend-down{background:rgba(240,79,94,.12);color:var(--crit);border:1px solid rgba(240,79,94,.22)}
+.trend-stable{background:var(--s2);color:var(--tx3);border:1px solid var(--brd)}
+/* ── AI cache label ─────────────────────────────────────────── */
+.ai-cache-lbl{font-size:10px;color:var(--tx3);font-family:var(--mono);opacity:.75;margin-right:4px}
+/* ── GPT result section ─────────────────────────────────────── */
+.sc-gpt-section{background:rgba(79,142,247,.05);border:1px solid rgba(79,142,247,.14);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:5px;margin-top:2px}
+.sc-rec.gpt{color:#d4d4f2;background:rgba(255,255,255,.025);border-radius:4px;padding:5px 8px;border:none}
+/* ── Error state ────────────────────────────────────────────── */
+.sc-err{color:var(--crit);font-size:12px;padding:8px 0;display:flex;align-items:center;gap:6px;opacity:.9}
+/* ── Toast ──────────────────────────────────────────────────── */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--s3);border:1px solid var(--brd2);color:var(--tx2);font-size:12px;padding:8px 20px;border-radius:8px;z-index:9999;opacity:0;transition:opacity .25s,transform .25s;font-family:var(--sans);pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:rgba(34,199,126,.3);color:var(--green)}
+.toast.err{border-color:rgba(240,79,94,.3);color:var(--crit)}
 
 /* Vacancy table action chips */
 .v-chips{display:flex;flex-wrap:wrap;gap:5px}
@@ -843,62 +860,119 @@ function analyzeApt(btn, recsId, idx){
   var c=_scards[idx]; if(!c) return;
   var el=E(recsId); if(!el) return;
 
+  // ── Cache check ───────────────────────────────────────────────
+  var cached=_aiCache[c.apt];
+  var isFresh=cached&&(Date.now()-cached.ts<CACHE_TTL);
+  if(isFresh&&btn.dataset.force!=='1'){
+    el.innerHTML='<div class="sc-gpt-section">'+cached.html+'</div>';
+    btn.disabled=false; btn.textContent='Güncelle'; btn.classList.add('done');
+    btn.dataset.force='1';
+    var lbl=el.parentNode.querySelector('.ai-cache-lbl');
+    if(lbl)lbl.textContent=_cacheAge(cached.ts);
+    return;
+  }
+  btn.dataset.force='0';
   btn.disabled=true; btn.textContent='Analiz ediliyor...'; btn.classList.remove('done');
   el.innerHTML='<div class="sc-ai-loading"><div class="lring" style="width:18px;height:18px;border-width:2px"></div><span style="font-size:12px;color:var(--tx3)">GPT analiz ediyor...</span></div>';
 
+  // ── Build prompt with trend data ──────────────────────────────
   var today=new Date();
   var fut=new Date(today); fut.setDate(today.getDate()+60);
   var fmt=function(d){return d.toLocaleDateString('tr-TR',{day:'numeric',month:'long'});};
   var range=fmt(today)+' – '+fmt(fut);
 
+  var prev=_occHistory[c.apt];
+  var trendLine='';
+  if(prev!==undefined&&prev!==c.occ){
+    var diff=c.occ-prev;
+    trendLine='\nÖnceki doluluk: %'+prev+' → Şimdi: %'+c.occ+' ('+(diff>0?'+':'')+diff+'% değişim)';
+  }
+
   var prompt=
-    'Sen bir Airbnb property manager danişmansın. Aşağıdaki daire için '+range+
-    ' tarih aralığındaki doluluk verisini analiz et ve TÜRKÇE olarak 5-6 somut, uygulanabilir öneri ver.\n\n'+
+    'Sen bir Airbnb property manager danışmansın. Aşağıdaki daire için '+range+
+    ' tarih aralığındaki verilere dayanarak TÜRKÇE 5-6 somut, uygulanabilir öneri ver.\n\n'+
     'Daire: '+c.apt+'\n'+
-    'Doluluk oranı: %'+c.occ+'\n'+
-    'Boş gün sayısı (60 gün penceresi): '+c.bosGun+' gün\n'+
-    'Kısa rezervasyon aralıkları (1-2 gece): '+c.orphan+' adet\n'+
-    'Tespit edilen sorunlar: '+(c.types.join(', ')||'Boşluk')+'\n\n'+
-    'Her öneri numaralı olsun. Somut rakamlar kullan (%15 indir, minimum 2 geceyi 1\'e düşür gibi). '+
-    'Teknik terim kullanma. Her öneri maksimum 2 cümle.';
+    'Güncel doluluk: %'+c.occ+trendLine+'\n'+
+    'Boş gün sayısı (önümüzdeki 60 gün): '+c.bosGun+'\n'+
+    'Kısa aralık sayısı (1-2 gecelik boşluk): '+c.orphan+'\n'+
+    'Tespit edilen sorunlar: '+(c.types.join(', ')||'Genel boşluk')+'\n\n'+
+    (trendLine?'Doluluk trendini dikkate al; düşüş varsa acil, artış varsa güçlendirici öneriler ver.\n':'')+
+    'Kurallar: Her öneri numaralı olsun. Somut rakam kullan (örn. %15 indir). Teknik terim kullanma. Her öneri max 2 cümle.';
 
   fetch('https://api.openai.com/v1/chat/completions',{
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+OPENAI_KEY},
-    body:JSON.stringify({model:'gpt-4o-mini',messages:[{role:'user',content:prompt}],max_tokens:600,temperature:0.7})
+    body:JSON.stringify({model:'gpt-4o-mini',messages:[{role:'user',content:prompt}],max_tokens:700,temperature:0.6})
   })
   .then(function(r){return r.json();})
   .then(function(data){
-    if(data.error){throw new Error(data.error.message);}
-    var text=(data.choices&&data.choices[0])?data.choices[0].message.content:'Yanıt alınamadı.';
+    if(data.error){
+      var code=data.error.code||'';
+      var msg=
+        code==='invalid_api_key'   ?'API anahtarı geçersiz — Ayarlar\'dan güncelle':
+        code==='insufficient_quota'?'OpenAI kotası doldu — hesabını kontrol et':
+        code==='rate_limit_exceeded'?'Çok sık istek — 30 sn bekle, tekrar dene':
+        'OpenAI hatası: '+data.error.message;
+      throw new Error(msg);
+    }
+    var text=(data.choices&&data.choices[0])?data.choices[0].message.content:'';
+    if(!text){throw new Error('Boş yanıt alındı');}
     var lines=text.split('\n').filter(function(l){return l.trim();});
-    var html=lines.map(function(line){
+    var innerHtml=lines.map(function(line){
       var m=line.match(/^(\d+)[.):]\s*(.*)/);
-      if(m)return'<div class="sc-rec"><span class="sc-rec-n">'+m[1]+'.</span><span>'+m[2]+'</span></div>';
+      if(m)return'<div class="sc-rec gpt"><span class="sc-rec-n">'+m[1]+'.</span><span>'+m[2]+'</span></div>';
       if(/^[-•*]/.test(line.trim()))
-        return'<div class="sc-rec"><span class="sc-rec-n">—</span><span>'+line.replace(/^[-•*]\s*/,'')+'</span></div>';
+        return'<div class="sc-rec gpt"><span class="sc-rec-n">—</span><span>'+line.replace(/^[-•*]\s*/,'')+'</span></div>';
       return'';
     }).filter(Boolean).join('');
-    el.innerHTML=html||'<div style="color:var(--tx3);font-size:12px">Yanıt parse edilemedi.</div>';
-    btn.disabled=false; btn.textContent='Yenile'; btn.classList.add('done');
+    var finalHtml=innerHtml||'<div style="color:var(--tx3);font-size:12px">Yanıt parse edilemedi.</div>';
+    _aiCache[c.apt]={ts:Date.now(),html:finalHtml};
+    el.innerHTML='<div class="sc-gpt-section">'+finalHtml+'</div>';
+    btn.disabled=false; btn.textContent='Güncelle'; btn.classList.add('done');
+    btn.dataset.force='1';
+    var lbl=el.parentNode.querySelector('.ai-cache-lbl');
+    if(lbl)lbl.textContent='Az önce';
   })
   .catch(function(err){
-    el.innerHTML='<div style="color:var(--red);font-size:12px">Hata: '+err.message+'</div>';
-    btn.disabled=false; btn.textContent='Tekrar Dene';
+    console.error('[GPT Analizi]',c.apt,err);
+    el.innerHTML='<div class="sc-err">⚠ '+err.message+'</div>';
+    btn.disabled=false; btn.textContent='Tekrar Dene'; btn.classList.remove('done');
+    delete btn.dataset.force;
   });
 }
-var _scards = []; // signal kartlarını sakla, onclick string escaping problemini önler
+
+/* ── Cache helpers ──────────────────────────────────────────── */
+function _cacheAge(ts){
+  var d=Math.round((Date.now()-ts)/60000);
+  if(d<1)return'Az önce';
+  if(d<60)return d+'dk önce';
+  return Math.round(d/60)+'sa önce';
+}
+
+/* ── Toast ──────────────────────────────────────────────────── */
+function showToast(msg,cls){
+  var t=document.createElement('div');
+  t.className='toast '+(cls||'');
+  t.textContent=msg;
+  document.body.appendChild(t);
+  requestAnimationFrame(function(){t.classList.add('show');});
+  setTimeout(function(){
+    t.classList.remove('show');
+    setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},300);
+  },2600);
+}
+var _scards    = [];           // signal cards for onclick index lookup
+var _aiCache   = {};           // {aptName: {ts, html}} — in-memory GPT cache
+var _occHistory= {};           // {aptName: occ} from previous render — for trend
+var CACHE_TTL  = 7200000;      // 2 hours in ms
+var _activeTab = 'dash';       // preserve active tab across auto-refreshes
 
 function sw(name,el){
-
+  _activeTab=name;
   document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
-
   document.querySelectorAll('.pane').forEach(function(p){p.classList.remove('on');});
-
   el.classList.add('active');
-
   E('tab-'+name).classList.add('on');
-
 }
 
 
@@ -1295,10 +1369,9 @@ function renderVacancy(rows){
 // ── SIGNALS ───────────────────────────────────────────────────
 
 function renderSignals(rows){
-
   E('tn3').textContent=rows.length;
 
-  // Daireye göre grupla — 1 daire = 1 kart
+  // ── Group by apartment ────────────────────────────────────────
   var byApt={};
   rows.forEach(function(r){
     var apt=r[0]||'Bilinmeyen';
@@ -1307,12 +1380,10 @@ function renderSignals(rows){
   });
 
   var cards=[];
-
   Object.keys(byApt).forEach(function(apt){
     var sigs=byApt[apt];
     var occ=null,bosGun=null,orphan=0;
     var types=[],allAkt='';
-
     sigs.forEach(function(s){
       var msg=s[3]||'',akt=s[4]||'',tf=fmtType(s[1]||'');
       allAkt+=' '+akt;
@@ -1324,32 +1395,42 @@ function renderSignals(rows){
       if(bm&&bosGun===null)bosGun=parseInt(bm[1]);
       if(rm)orphan=Math.max(orphan,parseInt(rm[1]));
     });
-
     occ=occ||0; bosGun=bosGun||0;
 
-    // Risk skoru: doluluk eksikliği + kısa aralık + boş gün bonusu
+    // ── Risk score ───────────────────────────────────────────────
     var score=Math.max(5,100-occ);
     if(orphan>0)score=Math.min(97,score+8+orphan*3);
     if(bosGun>35)score=Math.min(97,score+8);
     if(bosGun>45)score=Math.min(97,score+4);
     score=Math.round(score);
 
+    // ── Doluluk trendi (önceki yüklemeyle karşılaştır) ───────────
+    var prevOcc=_occHistory[apt];
+    var trend=null;
+    if(prevOcc!==undefined){
+      var diff=occ-prevOcc;
+      if(diff>=3)      trend={cls:'trend-up',   lbl:'↑ +'+diff+'%'};
+      else if(diff<=-3)trend={cls:'trend-down',  lbl:'↓ '+diff+'%'};
+      else             trend={cls:'trend-stable', lbl:'→ Sabit'};
+    }
+    _occHistory[apt]=occ;  // update history for next render
+
     var pri=score>=72?'KRİTİK':score>=52?'YÜKSEK':score>=32?'ORTA':'İYİ';
-    cards.push({apt:apt,score:score,pri:pri,occ:occ,bosGun:bosGun,orphan:orphan,types:types,chips:aktChips(allAkt)});
+    cards.push({apt:apt,score:score,pri:pri,occ:occ,bosGun:bosGun,orphan:orphan,types:types,chips:aktChips(allAkt),trend:trend});
   });
 
   cards.sort(function(a,b){return b.score-a.score;});
-  _scards = cards;
+  _scards=cards;
 
+  // ── KPI bar ──────────────────────────────────────────────────
   var kCnt=cards.filter(function(c){return c.pri==='KRİTİK';}).length;
   var yCnt=cards.filter(function(c){return c.pri==='YÜKSEK';}).length;
   E('skpi').innerHTML=K('Daire',cards.length,'p','analiz')+K('Kritik',kCnt,'r','müdahale')+K('Yüksek',yCnt,'a','öncelik');
 
-  // 60-günlük pencere bilgisi
+  // ── 60-gün pencere ───────────────────────────────────────────
   var t0=new Date(),t1=new Date(t0);t1.setDate(t0.getDate()+60);
   var fmtD=function(d){return d.toLocaleDateString('tr-TR',{day:'numeric',month:'short'});};
-  var periodStr=fmtD(t0)+' – '+fmtD(t1)+' (60 gün)';
-  E('spperiod').textContent=periodStr;
+  E('spperiod').textContent=fmtD(t0)+' – '+fmtD(t1)+' (60 gün)';
 
   if(!cards.length){E('sgrid').innerHTML='<div style="color:var(--tx3);padding:40px;text-align:center">Sinyal bulunamadı.</div>';return;}
 
@@ -1357,25 +1438,45 @@ function renderSignals(rows){
   cards.forEach(function(c,idx){
     var sc=c.score>=72?'var(--crit)':c.score>=52?'var(--high)':c.score>=32?'var(--med)':'var(--low)';
     var recsId='recs-'+idx;
+
+    // ── Metric chips ─────────────────────────────────────────────
     var mets=[];
     if(c.bosGun)mets.push(c.bosGun+' boş gün');
     if(c.orphan)mets.push(c.orphan+' kısa aralık');
-    if(c.occ)mets.push('%'+c.occ+' doluluk');
+    if(c.occ!==null)mets.push('%'+c.occ+' doluluk');
 
+    // ── Problem tags ─────────────────────────────────────────────
     var probHtml=c.types.map(function(t){return'<div class="sc-prob">'+t+'</div>';}).join('');
 
+    // ── Rule-based recommendations (default) ─────────────────────
     var recs=buildRecs(c.occ,c.bosGun,c.orphan);
     var recsHtml=recs.map(function(rec,i){
-      return '<div class="sc-rec"><span class="sc-rec-n">'+(i+1)+'.</span><span>'+rec+'</span></div>';
+      return'<div class="sc-rec"><span class="sc-rec-n">'+(i+1)+'.</span><span>'+rec+'</span></div>';
     }).join('');
 
-    var aiBtn='<button class="sc-ai-btn" onclick="analyzeApt(this,\''+recsId+'\','+idx+')">GPT Analizi</button>';
+    // ── Cached GPT result? Restore it ────────────────────────────
+    var cached=_aiCache[c.apt];
+    var isFresh=cached&&(Date.now()-cached.ts<CACHE_TTL);
+    if(isFresh){recsHtml='<div class="sc-gpt-section">'+cached.html+'</div>';}
+
+    // ── AI button ────────────────────────────────────────────────
+    var btnTxt=isFresh?'Güncelle':'GPT Analizi';
+    var btnCls='sc-ai-btn'+(isFresh?' done':'');
+    var btnForce=isFresh?'data-force="1"':'';
+    var aiBtn='<button class="'+btnCls+'" '+btnForce+' onclick="analyzeApt(this,\''+recsId+'\','+idx+')">'+btnTxt+'</button>';
+
+    // ── Cache age label ──────────────────────────────────────────
+    var cacheLbl=isFresh?'<span class="ai-cache-lbl">'+_cacheAge(cached.ts)+'</span>':'';
+
+    // ── Trend badge ──────────────────────────────────────────────
+    var trendHtml=c.trend?'<span class="trend-badge '+c.trend.cls+'">'+c.trend.lbl+'</span>':'';
 
     html+=
       '<div class="sc '+priCls(c.pri)+'">'+
         '<div class="sc-head">'+
           '<span class="sc-apt">'+c.apt+'</span>'+
-          '<div style="display:flex;align-items:center;gap:8px">'+
+          '<div style="display:flex;align-items:center;gap:6px">'+
+            trendHtml+
             '<span style="font-size:11px;font-family:var(--mono);color:'+sc+'">Risk '+c.score+'</span>'+
             priBadge(c.pri)+
           '</div>'+
@@ -1384,16 +1485,18 @@ function renderSignals(rows){
           '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">'+
             '<div class="sc-metrics">'+mets.map(function(m){return'<span class="sc-met">'+m+'</span>';}).join('')+'</div>'+
             '<span style="font-size:10px;color:var(--tx3);font-family:var(--mono);margin-left:4px">önümüzdeki 60 gün</span>'+
-          '</div>':'') +
+          '</div>':'')+
         (probHtml?'<div class="sc-prob-list">'+probHtml+'</div>':'')+
         '<div class="sc-divider"></div>'+
-        '<div class="sc-recs-hd"><span class="sc-recs-lbl">Öneriler</span>'+aiBtn+'</div>'+
+        '<div class="sc-recs-hd">'+
+          '<span class="sc-recs-lbl">'+(isFresh?'GPT Önerileri':'Öneriler')+'</span>'+
+          '<div style="display:flex;align-items:center;gap:6px">'+cacheLbl+aiBtn+'</div>'+
+        '</div>'+
         '<div id="'+recsId+'" class="sc-recs">'+recsHtml+'</div>'+
       '</div>';
   });
 
   E('sgrid').innerHTML=html;
-
 }
 
 
@@ -1517,91 +1620,74 @@ function renderLog(logs){
 
 // ── MAIN LOAD ─────────────────────────────────────────────────
 
+var _isFirstLoad=true;
+
 function loadAll(){
-
   if(!GAS_URL){openModal();return;}
-
   var btn=E('rbtn');
-
   btn.classList.add('loading');
-
   clearInterval(cdTmr);
-
   E('cdown').textContent='Yükleniyor...';
 
-
-
   fetch(GAS_URL+'?api=1')
-
     .then(function(r){return r.json();})
-
     .then(function(data){
-
       renderDash(data.dashboard||[], data.cleaning||{});
-
       renderToday(data.today||{});
-
       renderVacancy(data.vacancy||[]);
-
       renderSignals(data.signals||[]);
-
       renderGelir(data.revenue||{}, data.inventory||{});
-
       renderLog(data.logs||[]);
 
-
-
       var now=new Date();
-
       E('tdate').textContent=
-
         now.toLocaleDateString('tr-TR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+
-
         ' · '+now.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
 
-
-
       btn.classList.remove('loading');
-
       startCD();
 
+      // Restore active tab after re-render (prevent jumping to dash on auto-refresh)
+      if(!_isFirstLoad&&_activeTab&&_activeTab!=='dash'){
+        var tabEl=document.querySelector('.tab[onclick*="\''+_activeTab+'\'"]');
+        if(tabEl){
+          document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+          document.querySelectorAll('.pane').forEach(function(p){p.classList.remove('on');});
+          tabEl.classList.add('active');
+          var pane=E('tab-'+_activeTab);
+          if(pane)pane.classList.add('on');
+        }
+      }
+      if(!_isFirstLoad)showToast('Veriler güncellendi','ok');
+      _isFirstLoad=false;
     })
-
     .catch(function(err){
-
       btn.classList.remove('loading');
-
+      showToast('Bağlantı hatası: '+err.message,'err');
       E('dkpi').innerHTML=
-
         '<div class="err-box"><strong>⚠️ Bağlantı Hatası</strong>'+
-
         'GAS URL\'ye ulaşılamadı. Ayarlar\'a tıkla ve URL\'yi kontrol et.<br><br>'+
-
         '<code style="font-size:11px;color:var(--tx2)">'+err.message+'</code></div>';
-
     });
-
 }
-
-
 
 // ── INIT ──────────────────────────────────────────────────────
 
 window.onload = function(){
-
-  if(!GAS_URL){
-
-    openModal();
-
-  } else {
-
-    loadAll();
-
-  }
-
+  if(!GAS_URL){openModal();}else{loadAll();}
 };
 
-setInterval(loadAll, 300000);
+// Auto-refresh every 5 min; pause when tab is hidden
+setInterval(function(){if(!document.hidden)loadAll();}, 300000);
+
+document.addEventListener('visibilitychange',function(){
+  if(!document.hidden&&GAS_URL){
+    // Tab became visible — if countdown expired while hidden, reload now
+    if(cdVal<=0)loadAll();else startCD();
+  } else {
+    clearInterval(cdTmr);
+  }
+});
 
 </script>
 
