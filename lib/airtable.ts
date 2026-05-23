@@ -105,3 +105,71 @@ export async function createCleaningTask(
 ): Promise<any> {
   return createRecord("Cleaning_Tasks", fields as Record<string, unknown>);
 }
+
+export interface Apartment {
+  id: string;
+  fields: {
+    Apartment: string;
+    "Calendar Name"?: string;
+    Address?: string;
+    Door_Code?: string;
+    WiFi_Name?: string;
+    WiFi_Password?: string;
+    CheckIn_Time?: string;
+    CheckOut_Time?: string;
+    Parking?: string;
+    Nearby?: string;
+  };
+}
+
+export async function getApartments(): Promise<Apartment[]> {
+  return listRecords("Apartments");
+}
+
+export async function getApartmentByName(name: string): Promise<Apartment[]> {
+  return listRecords("Apartments", `{Apartment}='${name}'`);
+}
+
+export async function getTomorrowCheckins(): Promise<Reservation[]> {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const tomorrow = d.toISOString().split("T")[0];
+  return listRecords("Reservations", `{Check_In}='${tomorrow}'`);
+}
+
+// Airtable upsert (PATCH ile performUpsert)
+export async function upsertReservations(
+  records: Reservation["fields"][]
+): Promise<{ created: number; updated: number }> {
+  // Airtable max 10 record per request
+  const chunks: Reservation["fields"][][] = [];
+  for (let i = 0; i < records.length; i += 10) {
+    chunks.push(records.slice(i, i + 10));
+  }
+
+  let created = 0;
+  let updated = 0;
+
+  for (const chunk of chunks) {
+    const res = await fetch(
+      `${BASE_URL()}/${encodeURIComponent("Reservations")}`,
+      {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          performUpsert: { fieldsToMergeOn: ["Rezervasyon_Kodu"] },
+          records: chunk.map((f) => ({ fields: f })),
+        }),
+      }
+    );
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Airtable upsert ${res.status}: ${body}`);
+    }
+    const data = await res.json();
+    created += data.createdRecords?.length ?? 0;
+    updated += data.updatedRecords?.length ?? 0;
+  }
+
+  return { created, updated };
+}

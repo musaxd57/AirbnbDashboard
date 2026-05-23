@@ -25,10 +25,12 @@ function TriggerButton({
       if (data.ok) {
         setStatus("ok");
         setDetail(
-          data.count !== undefined
-            ? `${data.count} görev oluşturuldu`
-            : data.checkIns !== undefined
+          data.checkIns !== undefined
             ? `${data.checkIns} giriş · ${data.checkOuts} çıkış · ${data.active} dolu`
+            : data.created !== undefined && data.updated !== undefined
+            ? `${data.created} yeni · ${data.updated} güncellendi (${data.parsed} rezervasyon)`
+            : data.count !== undefined
+            ? `${data.count} mesaj/görev işlendi`
             : data.message ?? ""
         );
       } else {
@@ -72,14 +74,24 @@ export default function ActionButtons() {
   return (
     <div className="space-y-3">
       <TriggerButton
+        icon="🔄"
+        label="iCal Sync — Airbnb'den Rezervasyonları Çek"
+        endpoint="/api/cron/sync"
+      />
+      <TriggerButton
         icon="📊"
-        label="Sabah Raporu Gönder"
+        label="Sabah Raporu Gönder (Telegram)"
         endpoint="/api/cron/morning"
       />
       <TriggerButton
         icon="🧹"
         label="Temizlik Görevlerini Kontrol Et"
         endpoint="/api/cron/cleaning"
+      />
+      <TriggerButton
+        icon="🤖"
+        label="Yarın Giriş — AI Check-in Mesajı Üret"
+        endpoint="/api/cron/checkin-ai"
       />
       <TriggerButton
         icon="📡"
