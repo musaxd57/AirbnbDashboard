@@ -1,5 +1,8 @@
 .env
 .env.local
 tokens.json
+airtable-token.txt
+telegram-token.txt
+openai-key.txt
 .next/
 node_modules/

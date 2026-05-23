@@ -9,33 +9,40 @@ interface Tokens {
   OPENAI_API_KEY?: string;
 }
 
-function loadTokens(): Tokens {
-  // 1. Önce process.env dene
-  if (process.env.AIRTABLE_TOKEN) {
-    return {
-      AIRTABLE_TOKEN: process.env.AIRTABLE_TOKEN,
-      AIRTABLE_BASE_ID: process.env.AIRTABLE_BASE_ID ?? "",
-      TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN ?? "",
-      TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID ?? "",
-      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-    };
-  }
+// Sabit değerler — bunları değiştirme
+const DEFAULTS = {
+  AIRTABLE_BASE_ID: "appc7SZojZt50Hv7v",
+  TELEGRAM_CHAT_ID: "6248901684",
+};
 
-  // 2. tokens.json dosyasından oku (her istekte taze okur)
-  const tokenFile = path.join(process.cwd(), "tokens.json");
-  if (fs.existsSync(tokenFile)) {
-    const raw = fs.readFileSync(tokenFile, "utf-8");
-    return JSON.parse(raw);
-  }
-
-  return {
-    AIRTABLE_TOKEN: "",
-    AIRTABLE_BASE_ID: "appc7SZojZt50Hv7v",
-    TELEGRAM_BOT_TOKEN: "",
-    TELEGRAM_CHAT_ID: "6248901684",
-  };
+function readFile(filename: string): string {
+  try {
+    const p = path.join(process.cwd(), filename);
+    if (fs.existsSync(p)) return fs.readFileSync(p, "utf-8").trim();
+  } catch {}
+  return "";
 }
 
 export function getConfig(): Tokens {
-  return loadTokens();
+  // 1. tokens.json varsa oku
+  try {
+    const p = path.join(process.cwd(), "tokens.json");
+    if (fs.existsSync(p)) {
+      const t = JSON.parse(fs.readFileSync(p, "utf-8"));
+      if (t.AIRTABLE_TOKEN) return { ...DEFAULTS, ...t };
+    }
+  } catch {}
+
+  // 2. Tek satırlık dosyalar
+  const airtableToken = readFile("airtable-token.txt") || process.env.AIRTABLE_TOKEN || "";
+  const telegramToken = readFile("telegram-token.txt") || process.env.TELEGRAM_BOT_TOKEN || "";
+  const openaiKey = readFile("openai-key.txt") || process.env.OPENAI_API_KEY || "";
+
+  return {
+    AIRTABLE_TOKEN: airtableToken,
+    AIRTABLE_BASE_ID: process.env.AIRTABLE_BASE_ID || DEFAULTS.AIRTABLE_BASE_ID,
+    TELEGRAM_BOT_TOKEN: telegramToken,
+    TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID || DEFAULTS.TELEGRAM_CHAT_ID,
+    OPENAI_API_KEY: openaiKey,
+  };
 }
