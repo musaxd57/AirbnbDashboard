@@ -1,6 +1,7 @@
 // ============================================================
-//  AIRBNB PMS — Kod.gs  (Temiz versiyon)
+//  AIRBNB PMS — Kod.gs
 //  10 daire · Telegram · n8n · AI · Envanter · Gelir
+//  v3 — Envanter array format, doGet update endpoint
 // ============================================================
 
 var CFG = {
@@ -42,17 +43,17 @@ function onOpen() {
   try {
     SpreadsheetApp.getUi()
       .createMenu("🏠 Airbnb PMS")
-      .addItem("🚀 Hepsini Çalıştır",           "runAll")
+      .addItem("🚀 Hepsini Çalıştır",        "runAll")
       .addSeparator()
-      .addItem("📅 Dashboard",                  "runDashboard")
-      .addItem("📋 Bugün",                      "runToday")
-      .addItem("📊 Boşluk Analizi",             "runVacancy")
-      .addItem("🤖 AI Sinyalleri + n8n",        "runAISignals")
+      .addItem("📅 Dashboard",               "runDashboard")
+      .addItem("📋 Bugün",                   "runToday")
+      .addItem("📊 Boşluk Analizi",          "runVacancy")
+      .addItem("🤖 AI Sinyalleri + n8n",     "runAISignals")
       .addSeparator()
-      .addItem("📦 Envanter Sayfası Kur",       "setupEnvanter")
-      .addItem("📦 Envanteri Aç",               "openEnvanter")
-      .addItem("📋 Takvim Adlarını Listele",    "listCalendars")
-      .addItem("⏰ Sabah Tetikleyici Kur",      "setupTrigger")
+      .addItem("📦 Envanter Sayfası Kur",    "setupEnvanter")
+      .addItem("📦 Envanteri Aç",            "openEnvanter")
+      .addItem("📋 Takvim Adlarını Listele", "listCalendars")
+      .addItem("⏰ Sabah Tetikleyici Kur",   "setupTrigger")
       .addToUi();
   } catch(e) {}
 }
@@ -69,11 +70,9 @@ function runAll() {
 // APARTMENT MAP
 // ─────────────────────────────────────────────
 function buildAptMap() {
-  var ss    = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(CFG.SHEETS.APARTMENTS);
-  var nameMap  = {};
-  var priceMap = {};
-  var metaMap  = {};
+  var ss       = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet    = ss.getSheetByName(CFG.SHEETS.APARTMENTS);
+  var nameMap  = {}, priceMap = {}, metaMap = {};
   if (!sheet) return { nameMap:nameMap, priceMap:priceMap, metaMap:metaMap };
 
   sheet.getDataRange().getValues().slice(1).forEach(function(r) {
@@ -92,13 +91,13 @@ function buildAptMap() {
 // TAKVİM OKUMA
 // ─────────────────────────────────────────────
 function readReservations() {
-  var aptData  = buildAptMap();
-  var nameMap  = aptData.nameMap;
-  var metaMap  = aptData.metaMap;
-  var today    = midnight(new Date());
-  var start    = offsetD(today, -CFG.DAYS_BACK);
-  var end      = offsetD(today,  CFG.DAYS_AHEAD);
-  var rows     = [];
+  var aptData = buildAptMap();
+  var nameMap = aptData.nameMap;
+  var metaMap = aptData.metaMap;
+  var today   = midnight(new Date());
+  var start   = offsetD(today, -CFG.DAYS_BACK);
+  var end     = offsetD(today,  CFG.DAYS_AHEAD);
+  var rows    = [];
 
   CalendarApp.getAllCalendars().forEach(function(cal) {
     var raw = cal.getName();
@@ -120,7 +119,7 @@ function readReservations() {
         cIn:cIn, cOut:cOut,
         checkIn:fmtTR(cIn), checkOut:fmtTR(cOut),
         nights:nights, status:status,
-        kalan:kalanGun(cIn,today),
+        kalan:kalanGun(cIn, today),
         price:meta.price
       });
     });
@@ -142,11 +141,12 @@ function runDashboard() {
   writeTitle(sheet, 1, 7, "📅  AIRBNB DASHBOARD  —  " + fmtLong(today));
   sheet.setRowHeight(1, 44);
 
-  var c = countSt(rows);
+  var c   = countSt(rows);
   var kpi = ["✅ Giriş: "+c.in, "🔴 Çıkış: "+c.out, "🔵 Konaklama: "+c.stay,
              "🟡 Yaklaşan: "+c.up, "", "Toplam: "+rows.length, ""];
-  sheet.getRange(2,1,1,7).setValues([kpi]).setBackground(CFG.C.DARK)
-    .setFontColor(CFG.C.WHITE).setFontWeight("bold").setFontSize(11).setNumberFormat("@");
+  sheet.getRange(2,1,1,7).setValues([kpi])
+    .setBackground(CFG.C.DARK).setFontColor(CFG.C.WHITE)
+    .setFontWeight("bold").setFontSize(11).setNumberFormat("@");
   setBg(sheet.getRange(2,1), CFG.C.CHECKIN_BG,  CFG.C.CHECKIN);
   setBg(sheet.getRange(2,2), CFG.C.CHECKOUT_BG, CFG.C.CHECKOUT);
   setBg(sheet.getRange(2,3), CFG.C.STAYING_BG,  CFG.C.STAYING);
@@ -173,9 +173,9 @@ function runDashboard() {
       var row = 4 + i;
       var s   = stMap[r.status];
       var rng = sheet.getRange(row,1,1,7);
-      if (r.status === "CHECK-IN")       rng.setBackground(CFG.C.CHECKIN_BG);
-      else if (r.status === "CHECK-OUT") rng.setBackground(CFG.C.CHECKOUT_BG);
-      else if (r.status === "STAYING")   rng.setBackground(CFG.C.STAYING_BG);
+      if      (r.status==="CHECK-IN")  rng.setBackground(CFG.C.CHECKIN_BG);
+      else if (r.status==="CHECK-OUT") rng.setBackground(CFG.C.CHECKOUT_BG);
+      else if (r.status==="STAYING")   rng.setBackground(CFG.C.STAYING_BG);
       else rng.setBackground(i%2===0 ? CFG.C.GRAY : CFG.C.WHITE);
       sheet.getRange(row,1).setFontWeight("bold");
       if (s) setBg(sheet.getRange(row,6).setValue(s.t).setHorizontalAlignment("center"), s.bg, s.fg);
@@ -219,8 +219,8 @@ function runToday() {
 
   var kpi = ["Çıkış",outs.length,"Giriş",ins.length,"Konaklama",stay.length,
              "Yarın Çıkış",yarin.length,"Same-Day",sameDay.length,"",""];
-  sheet.getRange(2,1,1,12).setValues([kpi]).setFontWeight("bold")
-    .setHorizontalAlignment("center").setNumberFormat("@");
+  sheet.getRange(2,1,1,12).setValues([kpi])
+    .setFontWeight("bold").setHorizontalAlignment("center").setNumberFormat("@");
   setBg(sheet.getRange(2,1,1,2), CFG.C.CHECKOUT_BG, CFG.C.CHECKOUT);
   setBg(sheet.getRange(2,3,1,2), CFG.C.CHECKIN_BG,  CFG.C.CHECKIN);
   setBg(sheet.getRange(2,5,1,2), CFG.C.STAYING_BG,  CFG.C.STAYING);
@@ -229,11 +229,11 @@ function runToday() {
   sheet.setRowHeight(2, 38);
 
   var r = 3;
-  r = todayBlock(sheet,r,"🔴  BUGÜN ÇIKIŞLAR",     outs,    CFG.C.CHECKOUT_BG, CFG.C.CHECKOUT);
-  r = todayBlock(sheet,r,"✅  BUGÜN GİRİŞLER",      ins,     CFG.C.CHECKIN_BG,  CFG.C.CHECKIN);
-  r = todayBlock(sheet,r,"⚡  SAME-DAY TURNOVER",   sameDay, CFG.C.CRIT_BG,     CFG.C.CRIT);
-  r = todayBlock(sheet,r,"🔵  KONAKLAMA DEVAM",     stay,    CFG.C.STAYING_BG,  CFG.C.STAYING);
-  r = todayBlock(sheet,r,"🔔  YARIN ÇIKIŞLAR",      yarin,   CFG.C.MED_BG,      CFG.C.MED);
+  r = todayBlock(sheet,r,"🔴  BUGÜN ÇIKIŞLAR",    outs,    CFG.C.CHECKOUT_BG, CFG.C.CHECKOUT);
+  r = todayBlock(sheet,r,"✅  BUGÜN GİRİŞLER",     ins,     CFG.C.CHECKIN_BG,  CFG.C.CHECKIN);
+  r = todayBlock(sheet,r,"⚡  SAME-DAY TURNOVER",  sameDay, CFG.C.CRIT_BG,     CFG.C.CRIT);
+  r = todayBlock(sheet,r,"🔵  KONAKLAMA DEVAM",    stay,    CFG.C.STAYING_BG,  CFG.C.STAYING);
+  r = todayBlock(sheet,r,"🔔  YARIN ÇIKIŞLAR",     yarin,   CFG.C.MED_BG,      CFG.C.MED);
 
   setWidths(sheet, [170,90,250,110,110,70]);
   try { sheet.setFrozenRows(2); } catch(e) {}
@@ -299,28 +299,30 @@ function runVacancy() {
   var high = rows.filter(function(r){return r.risk==="YÜKSEK";}).length;
   var avg  = rows.length ? Math.round(rows.reduce(function(s,r){return s+r.occ;},0)/rows.length) : 0;
   var kpi2 = ["Kritik",crit,"Yüksek Risk",high,"Ort. Doluluk","%"+avg,"","","",""];
-  sheet.getRange(2,1,1,10).setValues([kpi2]).setFontWeight("bold")
-    .setHorizontalAlignment("center").setNumberFormat("@");
-  setBg(sheet.getRange(2,1,1,2), CFG.C.CRIT_BG,   CFG.C.CRIT);
-  setBg(sheet.getRange(2,3,1,2), CFG.C.HIGH_BG,   CFG.C.HIGH);
-  setBg(sheet.getRange(2,5,1,2), CFG.C.STAYING_BG,CFG.C.STAYING);
+  sheet.getRange(2,1,1,10).setValues([kpi2])
+    .setFontWeight("bold").setHorizontalAlignment("center").setNumberFormat("@");
+  setBg(sheet.getRange(2,1,1,2), CFG.C.CRIT_BG,    CFG.C.CRIT);
+  setBg(sheet.getRange(2,3,1,2), CFG.C.HIGH_BG,    CFG.C.HIGH);
+  setBg(sheet.getRange(2,5,1,2), CFG.C.STAYING_BG, CFG.C.STAYING);
   sheet.setRowHeight(2, 36);
 
   writeColH(sheet, 3, ["Daire","Doluluk","Boş Gün","Sonraki Başlangıç","Sonraki Bitiş",
                         "Boş Gece","En Uzun Gap","Orphan","Risk","Aksiyon"]);
 
-  if (rows.length>0) {
+  if (rows.length > 0) {
     var vals = rows.map(function(r){
       return [r.apt,"%"+r.occ,r.empty,r.nextFrom,r.nextTo,r.nextDays,r.longest,r.orphan,r.risk,r.action];
     });
     sheet.getRange(4,1,vals.length,10).setValues(vals).setNumberFormat("@");
     rows.forEach(function(r,i){
-      var row = 4+i;
+      var row   = 4+i;
       var bgMap = {KRİTİK:"#fff5f5",YÜKSEK:"#fff8f2",ORTA:"#fffdf0",DÜŞÜK:"#f5fff7"};
-      sheet.getRange(row,1,1,10).setBackground(bgMap[r.risk]||(i%2===0?CFG.C.GRAY:CFG.C.WHITE)).setFontSize(10);
-      sheet.getRange(row,1).setFontWeight("bold");
       var fgMap = {KRİTİK:CFG.C.CRIT,YÜKSEK:CFG.C.HIGH,ORTA:CFG.C.MED,DÜŞÜK:CFG.C.LOW};
-      if (fgMap[r.risk]) setBg(sheet.getRange(row,9).setHorizontalAlignment("center"), fgMap[r.risk], CFG.C.WHITE);
+      sheet.getRange(row,1,1,10)
+        .setBackground(bgMap[r.risk]||(i%2===0?CFG.C.GRAY:CFG.C.WHITE)).setFontSize(10);
+      sheet.getRange(row,1).setFontWeight("bold");
+      if (fgMap[r.risk])
+        setBg(sheet.getRange(row,9).setHorizontalAlignment("center"), fgMap[r.risk], CFG.C.WHITE);
       sheet.setRowHeight(row, 26);
     });
   }
@@ -357,18 +359,21 @@ function calcVac(apt, reservations, today, limit) {
   var next    = gaps.length ? gaps[0] : null;
 
   var score = empty*2 + longest*3 + orphan*8;
-  if (occ<40) score+=50; else if (occ<60) score+=35; else if (occ<75) score+=20; else if (occ<85) score+=10;
+  if      (occ<40) score+=50;
+  else if (occ<60) score+=35;
+  else if (occ<75) score+=20;
+  else if (occ<85) score+=10;
   score = Math.min(100,Math.round(score));
 
   var risk = score>=75?"KRİTİK":score>=50?"YÜKSEK":score>=25?"ORTA":"DÜŞÜK";
 
   var action;
-  if (orphan>0)      action="Orphan gap! Min stay=1, last-minute -%20, same-day aç.";
-  else if (longest>=14) action="Uzun boşluk: -%20 indirim + haftalık indirim.";
-  else if (longest>=7)  action="Orta boşluk: -%10 indirim, min stay esnet.";
-  else if (occ>=90)     action="Doluluk güçlü: fiyat artışı test et.";
-  else if (occ<60)      action="Düşük doluluk: fiyat + görünürlük optimize et.";
-  else                  action="Günlük takip. Instant Book açık kalsın.";
+  if      (orphan>0)     action="Orphan gap! Min stay=1, last-minute -%20, same-day aç.";
+  else if (longest>=14)  action="Uzun boşluk: -%20 indirim + haftalık indirim.";
+  else if (longest>=7)   action="Orta boşluk: -%10 indirim, min stay esnet.";
+  else if (occ>=90)      action="Doluluk güçlü: fiyat artışı test et.";
+  else if (occ<60)       action="Düşük doluluk: fiyat + görünürlük optimize et.";
+  else                   action="Günlük takip. Instant Book açık kalsın.";
 
   return {
     apt:apt, occ:occ, empty:empty,
@@ -407,7 +412,8 @@ function runAISignals() {
     if (risk==="KRİTİK"||risk==="YÜKSEK") {
       signals.push(mkSig({
         apt:apt, type:"BOŞLUK_UYARISI", pri:risk,
-        msg:apt+" — Doluluk: %"+occ+" | Boş: "+empty+" gün | En uzun: "+longest+" gün | Orphan: "+orphan+" | Sonraki: "+nFrom+" → "+nTo+" ("+nDays+" gece)",
+        msg:apt+" — Doluluk: %"+occ+" | Boş: "+empty+" gün | En uzun: "+longest+
+            " gün | Orphan: "+orphan+" | Sonraki: "+nFrom+" → "+nTo+" ("+nDays+" gece)",
         action:action, range:nFrom+"→"+nTo, occ:"%"+occ
       }));
     }
@@ -479,11 +485,11 @@ function runAISignals() {
   var bugun  = signals.filter(function(s){return s.priority==="BUGÜN";}).length;
   var kritik = signals.filter(function(s){return s.priority==="KRİTİK";}).length;
   var kpi3   = ["Toplam",signals.length,"Bugün",bugun,"Kritik",kritik];
-  sheet.getRange(2,1,1,6).setValues([kpi3]).setFontWeight("bold")
-    .setHorizontalAlignment("center").setNumberFormat("@");
-  setBg(sheet.getRange(2,1,1,2), CFG.C.DARK,    CFG.C.WHITE);
-  setBg(sheet.getRange(2,3,1,2), CFG.C.TODAY_BG,CFG.C.TODAY_FG);
-  setBg(sheet.getRange(2,5,1,2), CFG.C.CRIT_BG, CFG.C.CRIT);
+  sheet.getRange(2,1,1,6).setValues([kpi3])
+    .setFontWeight("bold").setHorizontalAlignment("center").setNumberFormat("@");
+  setBg(sheet.getRange(2,1,1,2), CFG.C.DARK,     CFG.C.WHITE);
+  setBg(sheet.getRange(2,3,1,2), CFG.C.TODAY_BG, CFG.C.TODAY_FG);
+  setBg(sheet.getRange(2,5,1,2), CFG.C.CRIT_BG,  CFG.C.CRIT);
   sheet.setRowHeight(2, 36);
 
   writeColH(sheet, 3, ["Daire","Tip","Öncelik","Mesaj","Aksiyon","Tarih"]);
@@ -494,12 +500,14 @@ function runAISignals() {
     });
     sheet.getRange(4,1,vals.length,6).setValues(vals).setNumberFormat("@");
     signals.forEach(function(s,i){
-      var row=4+i;
-      var bgMap={BUGÜN:CFG.C.TODAY_BG,KRİTİK:"#fff5f5",YÜKSEK:"#fff8f2",ORTA:"#fffdf0"};
-      var fgMap={BUGÜN:CFG.C.TODAY_FG,KRİTİK:CFG.C.CRIT,YÜKSEK:CFG.C.HIGH,ORTA:CFG.C.MED};
-      sheet.getRange(row,1,1,6).setBackground(bgMap[s.priority]||(i%2===0?CFG.C.GRAY:CFG.C.WHITE)).setFontSize(10);
+      var row   = 4+i;
+      var bgMap = {BUGÜN:CFG.C.TODAY_BG,KRİTİK:"#fff5f5",YÜKSEK:"#fff8f2",ORTA:"#fffdf0"};
+      var fgMap = {BUGÜN:CFG.C.TODAY_FG,KRİTİK:CFG.C.CRIT,YÜKSEK:CFG.C.HIGH,ORTA:CFG.C.MED};
+      sheet.getRange(row,1,1,6)
+        .setBackground(bgMap[s.priority]||(i%2===0?CFG.C.GRAY:CFG.C.WHITE)).setFontSize(10);
       sheet.getRange(row,1).setFontWeight("bold");
-      if (fgMap[s.priority]) setBg(sheet.getRange(row,3).setHorizontalAlignment("center"),fgMap[s.priority],CFG.C.WHITE);
+      if (fgMap[s.priority])
+        setBg(sheet.getRange(row,3).setHorizontalAlignment("center"), fgMap[s.priority], CFG.C.WHITE);
       sheet.setRowHeight(row, 28);
     });
   }
@@ -513,60 +521,71 @@ function runAISignals() {
 
 function mkSig(o) {
   return {
-    apartment:  o.apt||"",
-    type:       o.type||"",
-    priority:   o.pri||"",
-    message:    o.msg||"",
-    action:     o.action||"",
-    date_range: o.range||"",
+    apartment:     o.apt||"",
+    type:          o.type||"",
+    priority:      o.pri||"",
+    message:       o.msg||"",
+    action:        o.action||"",
+    date_range:    o.range||"",
     occupancy_pct: o.occ||"",
-    checkouts:  o.checkouts||[],
-    all_types:  o.type||""
+    checkouts:     o.checkouts||[],
+    all_types:     o.type||""
   };
 }
 
 // ─────────────────────────────────────────────
-// N8N PAYLOAD — Gerçek fiyatlarla
+// N8N PAYLOAD
 // ─────────────────────────────────────────────
 function sendN8N(signals) {
   var url = CFG.N8N_WEBHOOK;
   if (!url) return;
 
   try {
-    // Gerçek daire fiyatları
     var aptData  = buildAptMap();
     var priceMap = aptData.priceMap;
+    var invArr   = getInventory();  // array of {name,cat,cur,min,unit,...}
+    var revenue  = calcRevenue();
 
-    // Envanter
-    var inventory = getInventory();
-    var revenue   = calcRevenue();
-
-    // Envanter uyarıları
+    // Envanter uyarıları — yeni array formatına göre
     var alerts = [];
     var todayCikis = signals.filter(function(s){
-      return (s.all_types||"").indexOf("ÇIKIŞ_BUGÜN")>=0||(s.all_types||"").indexOf("TEMİZLİK")>=0;
+      return (s.all_types||"").indexOf("ÇIKIŞ_BUGÜN")>=0 ||
+             (s.all_types||"").indexOf("TEMİZLİK")>=0;
     }).length;
-    var carshaf = parseInt(inventory["Temiz Çarşaf Seti"])||0;
-    var havlu   = parseInt(inventory["Temiz Havlu (kişi)"])||0;
-    var deterjan= parseFloat(inventory["Deterjan (kg)"])||0;
-    if (carshaf>0 && carshaf < todayCikis*2) alerts.push("⚠️ Çarşaf azalıyor: "+carshaf+" set, "+todayCikis+" daire temizlenecek.");
-    if (havlu>0   && havlu   < todayCikis*3) alerts.push("⚠️ Havlu azalıyor: "+havlu+" adet.");
-    if (deterjan>0&& deterjan< 2)            alerts.push("🔴 Deterjan kritik: "+deterjan+"kg, alım gerekiyor.");
 
-    // 10'da 1 stok kontrolü
-    var logSheet   = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CFG.SHEETS.LOG);
-    var logCount   = logSheet ? logSheet.getLastRow()-1 : 0;
-    var sendStock  = logCount>0 && logCount%10===0;
+    function invVal(name) {
+      var item = invArr.filter(function(i){return i.name===name;})[0];
+      return item ? item.cur : 0;
+    }
+    var carshaf  = invVal("Temiz Çarşaf Seti");
+    var havlu    = invVal("Temiz Havlu (büyük)");
+    var deterjan = invVal("Deterjan");
+
+    if (carshaf>0  && carshaf  < todayCikis*2) alerts.push("⚠️ Çarşaf azalıyor: "+carshaf+" set, "+todayCikis+" daire temizlenecek.");
+    if (havlu>0    && havlu    < todayCikis*3) alerts.push("⚠️ Havlu azalıyor: "+havlu+" adet.");
+    if (deterjan>0 && deterjan < 2)            alerts.push("🔴 Deterjan kritik: "+deterjan+"kg, alım gerekiyor.");
+
+    // Kritik stok uyarısı — tüm kalemler
+    invArr.forEach(function(item) {
+      if (item.cur<=0 && item.min>0)
+        alerts.push("🔴 STOK YOK: "+item.name+" (min: "+item.min+" "+item.unit+")");
+      else if (item.cur>0 && item.cur<item.min)
+        alerts.push("⚠️ Az stok: "+item.name+" = "+item.cur+" "+item.unit+" (min: "+item.min+")");
+    });
+
+    var logSheet  = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CFG.SHEETS.LOG);
+    var logCount  = logSheet ? logSheet.getLastRow()-1 : 0;
+    var sendStock = logCount>0 && logCount%10===0;
 
     var payload = {
-      timestamp:         new Date().toISOString(),
-      signal_count:      signals.length,
-      signals:           signals,
-      apartment_prices:  priceMap,
-      inventory:         inventory,
-      inventory_alerts:  alerts,
-      revenue:           revenue,
-      send_stock_check:  sendStock
+      timestamp:        new Date().toISOString(),
+      signal_count:     signals.length,
+      signals:          signals,
+      apartment_prices: priceMap,
+      inventory:        invArr,
+      inventory_alerts: alerts,
+      revenue:          revenue,
+      send_stock_check: sendStock
     };
 
     UrlFetchApp.fetch(url, {
@@ -581,9 +600,8 @@ function sendN8N(signals) {
 
 // ─────────────────────────────────────────────
 // ENVANTER
+// Şema: Malzeme|Kategori|Mevcut|Min|Birim|Daire|Not|Son Güncelleme
 // ─────────────────────────────────────────────
-// ── ENVANTER SETUP ─────────────────────────────────────────────
-// Şema: Malzeme | Kategori | Mevcut | Min | Birim | Daire | Not | Son Güncelleme
 function setupEnvanter() {
   var ss    = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(CFG.SHEETS.ENVANTER);
@@ -597,20 +615,19 @@ function setupEnvanter() {
 
   var today = Utilities.formatDate(new Date(), CFG.TIMEZONE, "dd.MM.yyyy");
   var items = [
-    // Malzeme                  Kategori      Mevcut  Min  Birim     Daire    Not                                    Güncelleme
-    ["Temiz Çarşaf Seti",      "Çamaşır",    0,      20,  "set",    "Genel", "Nevresim + çarşaf + 2 yastık kılıfı", today],
-    ["Kirli Çarşaf Seti",      "Çamaşır",    0,      0,   "set",    "Genel", "Yıkama bekliyor",                     today],
-    ["Temiz Havlu (büyük)",    "Çamaşır",    0,      30,  "adet",   "Genel", "Kişi başı 2 havlu",                   today],
-    ["Kirli Havlu",            "Çamaşır",    0,      0,   "adet",   "Genel", "Yıkama bekliyor",                     today],
-    ["El Havlusu (temiz)",     "Çamaşır",    0,      20,  "adet",   "Genel", "",                                    today],
-    ["Sabun",                  "Amenities",  0,      15,  "adet",   "Genel", "Misafir başına 1",                    today],
-    ["Şampuan",                "Amenities",  0,      15,  "adet",   "Genel", "Misafir başına 1",                    today],
-    ["Tuvalet Kağıdı",        "Amenities",  0,      20,  "rulo",   "Genel", "Rezervasyon başına 2",                today],
-    ["Deterjan",               "Temizlik",   0,      5,   "kg",     "Genel", "Çamaşır deterjanı",                   today],
-    ["Yumuşatıcı",             "Temizlik",   0,      3,   "litre",  "Genel", "",                                    today],
-    ["Çöp Torbası",            "Temizlik",   0,      50,  "adet",   "Genel", "Mutfak + banyo",                      today],
-    ["Bulaşık Deterjanı",      "Temizlik",   0,      5,   "adet",   "Genel", "",                                    today],
-    ["WC Temizleyici",         "Temizlik",   0,      5,   "adet",   "Genel", "",                                    today],
+    ["Temiz Çarşaf Seti",   "Çamaşır",   0, 20, "set",   "Genel", "Nevresim + çarşaf + 2 yastık kılıfı", today],
+    ["Kirli Çarşaf Seti",   "Çamaşır",   0,  0, "set",   "Genel", "Yıkama bekliyor",                     today],
+    ["Temiz Havlu (büyük)", "Çamaşır",   0, 30, "adet",  "Genel", "Kişi başı 2 havlu",                   today],
+    ["Kirli Havlu",         "Çamaşır",   0,  0, "adet",  "Genel", "Yıkama bekliyor",                     today],
+    ["El Havlusu (temiz)",  "Çamaşır",   0, 20, "adet",  "Genel", "",                                    today],
+    ["Sabun",               "Amenities", 0, 15, "adet",  "Genel", "Misafir başına 1",                    today],
+    ["Şampuan",             "Amenities", 0, 15, "adet",  "Genel", "Misafir başına 1",                    today],
+    ["Tuvalet Kağıdı",     "Amenities", 0, 20, "rulo",  "Genel", "Rezervasyon başına 2",                today],
+    ["Deterjan",            "Temizlik",  0,  5, "kg",    "Genel", "Çamaşır deterjanı",                   today],
+    ["Yumuşatıcı",          "Temizlik",  0,  3, "litre", "Genel", "",                                    today],
+    ["Çöp Torbası",         "Temizlik",  0, 50, "adet",  "Genel", "Mutfak + banyo",                      today],
+    ["Bulaşık Deterjanı",   "Temizlik",  0,  5, "adet",  "Genel", "",                                    today],
+    ["WC Temizleyici",      "Temizlik",  0,  5, "adet",  "Genel", "",                                    today],
   ];
 
   sheet.getRange(2,1,items.length,headers.length).setValues(items);
@@ -625,27 +642,28 @@ function setupEnvanter() {
 }
 
 function openEnvanter() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss    = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(CFG.SHEETS.ENVANTER);
   if (!sheet) { setupEnvanter(); return; }
   ss.setActiveSheet(sheet);
 }
 
-// Returns array of {name, cat, cur, min, unit, apt, note, updated}
-// Compatible with dashboard renderEnvanter()
+// Döndürür: [{name, cat, cur, min, unit, apt, note, updated}, ...]
+// Dashboard renderEnvanter() ile uyumlu
 function getInventory() {
   var ss    = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(CFG.SHEETS.ENVANTER);
   if (!sheet) return [];
-  var rows  = sheet.getDataRange().getValues().slice(1);
+  var rows   = sheet.getDataRange().getValues().slice(1);
   var result = [];
   rows.forEach(function(r) {
     var name = txt(r[0]);
     if (!name) return;
-    // Detect old 3-column format: col[1] is number → legacy
-    var isLegacy = (rows[0] && typeof rows[0][1] === 'number');
-    if (isLegacy || typeof r[1] === 'number') {
-      result.push({name:name, cat:'Genel', cur:parseInt(r[1])||0, min:3, unit:'adet', apt:'Genel', note:txt(r[2]), updated:''});
+    // Eski 3 sütunlu format tespiti (col[1] sayıysa eski format)
+    var isLegacy = typeof r[1] === 'number';
+    if (isLegacy) {
+      result.push({name:name, cat:'Genel', cur:parseInt(r[1])||0,
+                   min:3, unit:'adet', apt:'Genel', note:txt(r[2]), updated:''});
     } else {
       result.push({
         name:    name,
@@ -662,7 +680,7 @@ function getInventory() {
   return result;
 }
 
-// Update a single item's stock count (called from doGet ?action=update)
+// Stok güncelle — doGet ?action=update&item=NAME&val=N tarafından çağrılır
 function updateInventoryItem(name, val) {
   var ss    = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(CFG.SHEETS.ENVANTER);
@@ -675,8 +693,8 @@ function updateInventoryItem(name, val) {
       if (isLegacy) {
         sheet.getRange(i+1, 2).setValue(val);
       } else {
-        sheet.getRange(i+1, 3).setValue(val); // col C = Mevcut
-        sheet.getRange(i+1, 8).setValue(today); // col H = Son Güncelleme
+        sheet.getRange(i+1, 3).setValue(val);  // C = Mevcut
+        sheet.getRange(i+1, 8).setValue(today); // H = Son Güncelleme
       }
       logSys("ENVANTER", name + " stok güncellendi → " + val);
       return true;
@@ -693,7 +711,6 @@ function calcRevenue() {
   var dash     = ss.getSheetByName(CFG.SHEETS.DASHBOARD);
   var aptData  = buildAptMap();
   var priceMap = aptData.priceMap;
-
   if (!dash) return {};
 
   var today     = midnight(new Date());
@@ -702,7 +719,6 @@ function calcRevenue() {
   var weekEnd   = offsetD(today, 7);
   var nextMS    = new Date(thisYear, thisMonth+1, 1);
   var nextME    = new Date(thisYear, thisMonth+2, 0);
-
   var thisM=0, nextM=0, thisW=0;
 
   dash.getDataRange().getValues().slice(3).forEach(function(r) {
@@ -721,25 +737,25 @@ function calcRevenue() {
 }
 
 // ─────────────────────────────────────────────
-// WEB APP
+// WEB APP — doGet + getWebAppData
 // ─────────────────────────────────────────────
-// ============================================================
-//  Kod.gs'teki doGet fonksiyonunu bu versiyonla değiştir
-// ============================================================
-
 function doGet(e) {
   var p = (e && e.parameter) ? e.parameter : {};
 
-  // ?api=1 → full JSON payload
+  // ?api=1 → tam JSON payload
   if (p.api) {
     var data = getWebAppData();
-    return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+    return ContentService
+      .createTextOutput(JSON.stringify(data))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 
-  // ?action=update&item=NAME&val=N → update single inventory item
+  // ?action=update&item=NAME&val=N → envanter stok güncelle
   if (p.action === 'update' && p.item) {
     var ok = updateInventoryItem(p.item, parseInt(p.val)||0);
-    return ContentService.createTextOutput(JSON.stringify({ok:ok})).setMimeType(ContentService.MimeType.JSON);
+    return ContentService
+      .createTextOutput(JSON.stringify({ok:ok}))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 
   // Normal erişim → HTML döndür
@@ -778,7 +794,7 @@ function getWebAppData() {
     dashRows.forEach(function(r) {
       var apt=txt(r[0]), st=txt(r[5]);
       if (!apt) return;
-      if (st.indexOf("ÇIKIŞ")>=0)     cleaning[apt]="Kirli";
+      if      (st.indexOf("ÇIKIŞ")>=0)     cleaning[apt]="Kirli";
       else if (st.indexOf("GİRİŞ")>=0  && !cleaning[apt]) cleaning[apt]="Hazır";
       else if (st.indexOf("KONAKLAMA")>=0 && !cleaning[apt]) cleaning[apt]="Temiz";
     });
@@ -819,7 +835,7 @@ function getWebAppData() {
     logSys("WEBAPP_ERR", e.message);
     return {
       dashboard:[], today:{checkins:[],checkouts:[],staying:[],yarin:[]},
-      vacancy:[], signals:[], cleaning:{}, logs:[], inventory:{}, revenue:{},
+      vacancy:[], signals:[], cleaning:{}, logs:[], inventory:[], revenue:{},
       error: e.message
     };
   }
@@ -939,7 +955,7 @@ function extractGuest(desc, fallback) {
 function countSt(rows) {
   var c={in:0,out:0,stay:0,up:0};
   rows.forEach(function(r) {
-    if (r.status==="CHECK-IN")  c.in++;
+    if      (r.status==="CHECK-IN")  c.in++;
     else if (r.status==="CHECK-OUT") c.out++;
     else if (r.status==="STAYING")   c.stay++;
     else if (r.status==="UPCOMING")  c.up++;
@@ -990,10 +1006,10 @@ function setWidths(sheet, widths) {
 
 function colorTabs() {
   var ss=SpreadsheetApp.getActiveSpreadsheet();
-  var c={Dashboard:"#1b5e20",Today:"#0d47a1",Vacancy:"#b71c1c",
-         AI_Signals:"#4a148c",Apartments:"#37474f",Log:"#4e342e",Envanter:"#006064"};
-  Object.keys(c).forEach(function(n){
-    var s=ss.getSheetByName(n); if(s) s.setTabColor(c[n]);
+  var colors={Dashboard:"#1b5e20",Today:"#0d47a1",Vacancy:"#b71c1c",
+              AI_Signals:"#4a148c",Apartments:"#37474f",Log:"#4e342e",Envanter:"#006064"};
+  Object.keys(colors).forEach(function(n){
+    var s=ss.getSheetByName(n); if(s) s.setTabColor(colors[n]);
   });
 }
 
