@@ -899,6 +899,8 @@ function analyzeApt(btn, recsId, idx){
     (trendLine?'Doluluk trendini dikkate al; düşüş varsa acil, artış varsa güçlendirici öneriler ver.\n':'')+
     'Kurallar: Her öneri numaralı olsun. Somut rakam kullan (örn. %15 indir). Teknik terim kullanma. Her öneri max 2 cümle.';
 
+  _prompts[c.apt]=prompt; // store for clipboard fallback
+
   fetch('https://api.openai.com/v1/chat/completions',{
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+OPENAI_KEY},
@@ -935,7 +937,14 @@ function analyzeApt(btn, recsId, idx){
   })
   .catch(function(err){
     console.error('[GPT Analizi]',c.apt,err);
-    el.innerHTML='<div class="sc-err">⚠ '+err.message+'</div>';
+    var isNetErr=err instanceof TypeError||err.message==='Failed to fetch'||err.message.indexOf('NetworkError')>=0;
+    var errMsg=isNetErr
+      ?'OpenAI\'ya bağlanılamadı (ağ hatası). Promptu kopyalayıp ChatGPT\'ye yapıştır:'
+      :'⚠ '+err.message;
+    var copyBtn=isNetErr
+      ?'<button class="sc-ai-btn" style="margin-top:6px" onclick="copyPrompt(\''+c.apt.replace(/'/g,"\\'")+'\')" >Promptu Kopyala</button>'
+      :'';
+    el.innerHTML='<div class="sc-err" style="flex-direction:column;align-items:flex-start;gap:6px">'+errMsg+copyBtn+'</div>';
     btn.disabled=false; btn.textContent='Tekrar Dene'; btn.classList.remove('done');
     delete btn.dataset.force;
   });
@@ -947,6 +956,25 @@ function _cacheAge(ts){
   if(d<1)return'Az önce';
   if(d<60)return d+'dk önce';
   return Math.round(d/60)+'sa önce';
+}
+
+/* ── Clipboard prompt fallback ──────────────────────────────── */
+function copyPrompt(apt){
+  var p=_prompts[apt];
+  if(!p){showToast('Prompt bulunamadı','err');return;}
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(p).then(function(){
+      showToast('Prompt kopyalandı — ChatGPT\'ye yapıştır','ok');
+    }).catch(function(){_copyFallback(p);});
+  } else {_copyFallback(p);}
+}
+function _copyFallback(txt){
+  var ta=document.createElement('textarea');
+  ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select();
+  try{document.execCommand('copy');showToast('Prompt kopyalandı','ok');}
+  catch(e){showToast('Kopyalanamadı — konsola yazdırıldı','err');console.log(txt);}
+  document.body.removeChild(ta);
 }
 
 /* ── Toast ──────────────────────────────────────────────────── */
@@ -963,6 +991,7 @@ function showToast(msg,cls){
 }
 var _scards    = [];           // signal cards for onclick index lookup
 var _aiCache   = {};           // {aptName: {ts, html}} — in-memory GPT cache
+var _prompts   = {};           // {aptName: promptText} — for clipboard fallback
 var _occHistory= {};           // {aptName: occ} from previous render — for trend
 var CACHE_TTL  = 7200000;      // 2 hours in ms
 var _activeTab = 'dash';       // preserve active tab across auto-refreshes
@@ -1372,9 +1401,12 @@ function renderSignals(rows){
   E('tn3').textContent=rows.length;
 
   // ── Group by apartment ────────────────────────────────────────
+  // Filter out summary/meta rows (TÜM DAİRELER, headers, empty names)
+  var SKIP_NAMES=/^(TÜM DAİRELER|tüm daireler|bilinmeyen|header|özet|summary|all)$/i;
   var byApt={};
   rows.forEach(function(r){
-    var apt=r[0]||'Bilinmeyen';
+    var apt=(r[0]||'').trim();
+    if(!apt||SKIP_NAMES.test(apt))return;
     if(!byApt[apt])byApt[apt]=[];
     byApt[apt].push(r);
   });
