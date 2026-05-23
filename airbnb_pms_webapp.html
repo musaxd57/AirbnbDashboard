@@ -432,6 +432,44 @@ table.mt tbody tr:last-child td{border-bottom:none}
 .toast.ok{border-color:rgba(34,199,126,.3);color:var(--green)}
 .toast.err{border-color:rgba(240,79,94,.3);color:var(--crit)}
 
+/* ── Inventory System ───────────────────────────────────────── */
+.inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.inv-card{background:var(--s1);border:1px solid var(--brd);border-left:3px solid var(--brd2);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:10px;position:relative;transition:.15s}
+.inv-card.crit{border-left-color:var(--crit);background:rgba(240,79,94,.03)}
+.inv-card.low{border-left-color:var(--med)}
+.inv-card.ok{border-left-color:var(--low)}
+.inv-name{font-weight:600;font-size:13px;color:var(--tx);line-height:1.3}
+.inv-cat-b{display:inline-flex;font-size:9px;padding:2px 7px;border-radius:3px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border:1px solid}
+.icat-temizlik{color:#4f8ef7;border-color:rgba(79,142,247,.3);background:rgba(79,142,247,.08)}
+.icat-camasir{color:#9b7ffa;border-color:rgba(155,127,250,.3);background:rgba(155,127,250,.08)}
+.icat-amenities{color:#f5a623;border-color:rgba(245,166,35,.3);background:rgba(245,166,35,.08)}
+.icat-genel{color:var(--tx2);border-color:var(--brd2);background:var(--s2)}
+.inv-nums{display:flex;justify-content:space-between;align-items:flex-end;gap:6px}
+.inv-cur-v{font-size:28px;font-weight:700;font-family:var(--mono);line-height:1}
+.inv-cur-v.crit{color:var(--crit)}.inv-cur-v.low{color:var(--med)}.inv-cur-v.ok{color:var(--tx)}
+.inv-meta{font-size:11px;color:var(--tx3);font-family:var(--mono);margin-top:2px}
+.inv-slbl{font-size:10px;font-weight:700;letter-spacing:.3px}
+.inv-bar{height:3px;background:var(--s3);border-radius:2px;overflow:hidden;margin-top:2px}
+.inv-bar-f{height:100%;border-radius:2px;transition:width .5s}
+.inv-upd-btn{position:absolute;top:10px;right:10px;background:transparent;border:1px solid var(--brd);color:var(--tx3);padding:2px 8px;border-radius:4px;font-size:10px;cursor:pointer;font-family:var(--sans);transition:.15s}
+.inv-upd-btn:hover{border-color:var(--blue);color:var(--blue)}
+/* Category filter */
+.cat-filter{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.cat-tab-btn{background:var(--s2);border:1px solid var(--brd);color:var(--tx2);padding:4px 13px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:.15s}
+.cat-tab-btn.on,.cat-tab-btn:hover{background:var(--s3);border-color:var(--brd2);color:var(--tx)}
+/* Stock update modal */
+#invModal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:600}
+#invModal.open{display:flex}
+.inv-mbox{background:var(--s1);border:1px solid var(--brd2);border-radius:var(--r2);padding:26px 22px;width:300px;max-width:92vw;display:flex;flex-direction:column;gap:14px}
+.inv-m-title{font-size:16px;font-weight:700}
+.inv-m-name{font-size:12px;color:var(--tx2)}
+.inv-qty-row{display:flex;align-items:center;gap:6px}
+.inv-qty-btn{background:var(--s3);border:1px solid var(--brd2);color:var(--tx);width:34px;height:34px;border-radius:6px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.inv-qty-inp{flex:1;background:var(--s2);border:1px solid var(--brd2);color:var(--tx);padding:6px;border-radius:7px;font-size:22px;font-family:var(--mono);text-align:center;font-weight:700;width:0}
+.inv-save-row{display:flex;gap:8px}
+.inv-save-btn{flex:1;background:var(--blue);color:#fff;border:none;padding:9px;border-radius:7px;font-weight:600;font-size:13px;cursor:pointer;font-family:var(--sans)}
+.inv-cancel-btn{flex:1;background:var(--s3);color:var(--tx2);border:1px solid var(--brd2);padding:9px;border-radius:7px;font-weight:600;font-size:13px;cursor:pointer;font-family:var(--sans)}
+
 /* Vacancy table action chips */
 .v-chips{display:flex;flex-wrap:wrap;gap:5px}
 .v-chip{background:var(--s2);color:var(--tx2);border:1px solid var(--brd);padding:3px 9px;border-radius:4px;font-size:10px;font-weight:500;white-space:nowrap}
@@ -647,29 +685,39 @@ table.mt tbody tr:last-child td{border-bottom:none}
   <!-- GELİR -->
 
   <div class="pane" id="tab-gelir">
-
     <div class="sec">Gelir Tahmini</div>
-
     <div class="rev-row" id="revrow">
-
       <div class="loader"><div class="lring"></div><div class="ltxt">Yükleniyor...</div></div>
-
     </div>
-
-    <div class="sec">Envanter</div>
-
-    <div class="tbl-wrap">
-
-      <table class="mt">
-
-        <thead><tr><th>Kalem</th><th>Adet</th><th>Durum</th></tr></thead>
-
-        <tbody id="invtbody"><tr><td colspan="3" style="text-align:center;padding:40px;color:var(--tx3)">Yükleniyor...</td></tr></tbody>
-
-      </table>
-
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:24px 0 10px">
+      <div class="sec" style="margin:0;padding:0;border:none">Envanter</div>
+      <div class="kpi-row" id="invkpi" style="gap:8px"></div>
     </div>
+    <div class="cat-filter" id="invCatFilter"></div>
+    <div class="inv-grid" id="invGrid">
+      <div class="loader"><div class="lring"></div><div class="ltxt">Yükleniyor...</div></div>
+    </div>
+  </div>
 
+  <!-- Stock Update Modal -->
+  <div id="invModal">
+    <div class="inv-mbox">
+      <div class="inv-m-title">Stok Güncelle</div>
+      <div class="inv-m-name" id="invMName">-</div>
+      <div class="inv-qty-row">
+        <button class="inv-qty-btn" onclick="invDelta(-10)" title="-10">−−</button>
+        <button class="inv-qty-btn" onclick="invDelta(-1)">−</button>
+        <input class="inv-qty-inp" id="invQtyInp" type="number" min="0" value="0">
+        <button class="inv-qty-btn" onclick="invDelta(+1)">+</button>
+        <button class="inv-qty-btn" onclick="invDelta(+10)" title="+10">++</button>
+      </div>
+      <div style="font-size:11px;color:var(--tx3)">Min eşik: <span id="invMMin">—</span></div>
+      <div class="inv-save-row">
+        <button class="inv-save-btn" onclick="saveInvStock()">Kaydet</button>
+        <button class="inv-cancel-btn" onclick="closeInvModal()">İptal</button>
+      </div>
+      <div style="font-size:10px;color:var(--tx3);line-height:1.5">Kalıcı kayıt için GAS üzerinden Google Sheets güncellenir. Şimdilik yalnızca tarayıcı belleğine yazar.</div>
+    </div>
   </div>
 
 
@@ -1535,56 +1583,127 @@ function renderSignals(rows){
 
 // ── GELİR ─────────────────────────────────────────────────────
 
+// ── GELİR + ENVANTER ─────────────────────────────────────────
+var _invData=[], _invCat='Tümü', _invModalIdx=null;
+
 function renderGelir(revenue, inventory){
-
-  E('tn5').textContent='€';
-
   var rev=revenue||{};
-
   E('revrow').innerHTML=
-
     '<div class="rev-card"><div class="rev-lbl">Bu Ay Tahmini</div><div class="rev-val">'+(rev.this_month||0)+'€</div><div class="rev-sub">Tüm daireler</div></div>'+
-
     '<div class="rev-card"><div class="rev-lbl">Gelecek Ay</div><div class="rev-val">'+(rev.next_month||0)+'€</div><div class="rev-sub">Onaylı rezervasyonlar</div></div>'+
-
     '<div class="rev-card"><div class="rev-lbl">Bu Hafta</div><div class="rev-val">'+(rev.this_week||0)+'€</div><div class="rev-sub">7 günlük pencere</div></div>';
 
+  // Support both new array format and legacy {key:val} dict from old GAS
+  var items=Array.isArray(inventory)?inventory:_legacyInvConvert(inventory||{});
+  renderEnvanter(items);
+}
 
-
-  var inv=inventory||{};
-
-  var html='';
-
-  Object.keys(inv).forEach(function(k){
-
-    var v=inv[k];
-
-    var status='', statusCls='';
-
-    if(k.indexOf('Temiz')>=0||k.indexOf('temiz')>=0){
-
-      if(v===0){status='Stok Yok';statusCls='color:var(--red)';}
-
-      else if(v<5){status='Az';statusCls='color:var(--amber)';}
-
-      else{status='Yeterli';statusCls='color:var(--green)';}
-
-    }
-
-    html+='<tr>'+
-
-      '<td style="font-weight:600">'+k+'</td>'+
-
-      '<td style="font-family:var(--mono);font-size:14px;font-weight:700">'+v+'</td>'+
-
-      '<td style="font-size:12px;'+statusCls+'">'+status+'</td>'+
-
-      '</tr>';
-
+function _legacyInvConvert(dict){
+  return Object.keys(dict).map(function(k){
+    var cat='Genel';
+    if(/Çarşaf|Havlu|Nevresim/i.test(k)) cat='Çamaşır';
+    else if(/Sabun|Şampuan|Tuvalet|Amenities/i.test(k)) cat='Amenities';
+    else if(/Deterjan|Yumuşatıcı|Çöp|Temizlik/i.test(k)) cat='Temizlik';
+    return{name:k,cat:cat,cur:parseInt(dict[k])||0,min:3,unit:'adet',apt:'Genel',updated:''};
   });
+}
 
-  E('invtbody').innerHTML=html||'<tr><td colspan="3" style="text-align:center;padding:40px;color:var(--tx3)">Envanter verisi yok. GAS\'ta setupEnvanter() çalıştır.</td></tr>';
+function renderEnvanter(items){
+  _invData=items;
+  var crit=items.filter(function(i){return i.cur<=0;}).length;
+  var low =items.filter(function(i){return i.cur>0&&i.cur<i.min;}).length;
+  E('invkpi').innerHTML=
+    K('Toplam',items.length,'p','kalem')+
+    K('Kritik',crit,'r','stok yok')+
+    K('Az',low,'a','yenile');
+  E('tn5').textContent=(crit+low)>0?(crit+low)+'!':'€';
 
+  var cats=['Tümü'];
+  items.forEach(function(i){if(i.cat&&cats.indexOf(i.cat)<0)cats.push(i.cat);});
+  E('invCatFilter').innerHTML=cats.map(function(c){
+    return'<button class="cat-tab-btn'+(c===_invCat?' on':'')+'" onclick="filterInv(\''+c.replace(/'/g,"\\'")+'\')" >'+c+'</button>';
+  }).join('');
+
+  renderInvGrid();
+}
+
+function filterInv(cat){
+  _invCat=cat;
+  document.querySelectorAll('.cat-tab-btn').forEach(function(b){b.classList.toggle('on',b.textContent.trim()===cat);});
+  renderInvGrid();
+}
+
+function _catSlug(cat){
+  return(cat||'genel').toLowerCase()
+    .replace(/ı/g,'i').replace(/ş/g,'s').replace(/ç/g,'c').replace(/ğ/g,'g').replace(/ö/g,'o').replace(/ü/g,'u')
+    .replace(/\s+/g,'').replace(/[^a-z]/g,'');
+}
+
+function renderInvGrid(){
+  var items=_invCat==='Tümü'?_invData:_invData.filter(function(i){return i.cat===_invCat;});
+  if(!items.length){
+    E('invGrid').innerHTML='<div style="color:var(--tx3);padding:40px;text-align:center;grid-column:1/-1">Bu kategoride kalem yok.</div>';return;
+  }
+  if(!items[0].name){
+    E('invGrid').innerHTML='<div style="color:var(--tx3);padding:40px;text-align:center;grid-column:1/-1">Envanter verisi yok.<br><br>GAS\'ta <code>setupEnvanter()</code> çalıştır, ardından sayfayı yenile.</div>';return;
+  }
+  E('invGrid').innerHTML=items.map(function(item){
+    var gi=_invData.indexOf(item);
+    var pct=item.min>0?Math.min(100,Math.round(item.cur/item.min*100)):100;
+    var s=item.cur<=0?'crit':item.cur<item.min?'low':'ok';
+    var fc=item.cur<=0?'var(--crit)':item.cur<item.min?'var(--med)':'var(--low)';
+    var slbl=item.cur<=0?'STOK YOK':item.cur<item.min?'AZ — YENİLE':'YETERLİ';
+    var cs=_catSlug(item.cat);
+    return'<div class="inv-card '+s+'">'+
+      '<button class="inv-upd-btn" onclick="openInvModal('+gi+')">↑ Güncelle</button>'+
+      '<div style="display:flex;flex-direction:column;gap:5px">'+
+        '<span class="inv-cat-b icat-'+cs+'">'+(item.cat||'Genel')+'</span>'+
+        '<span class="inv-name">'+item.name+'</span>'+
+      '</div>'+
+      '<div class="inv-nums">'+
+        '<div>'+
+          '<div class="inv-cur-v '+s+'">'+item.cur+'</div>'+
+          '<div class="inv-meta">'+(item.unit||'adet')+(item.apt&&item.apt!=='Genel'?' · '+item.apt:'')+'</div>'+
+        '</div>'+
+        '<div style="text-align:right">'+
+          '<div class="inv-slbl" style="color:'+fc+'">'+slbl+'</div>'+
+          '<div class="inv-meta">min: '+item.min+'</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="inv-bar"><div class="inv-bar-f" style="width:'+pct+'%;background:'+fc+'"></div></div>'+
+      (item.updated?'<div style="font-size:9px;color:var(--tx3)">'+item.updated+'</div>':'')+
+    '</div>';
+  }).join('');
+}
+
+function openInvModal(idx){
+  var item=_invData[idx]; if(!item)return;
+  _invModalIdx=idx;
+  E('invMName').textContent=item.name+' ('+(item.cat||'Genel')+')';
+  E('invQtyInp').value=item.cur;
+  E('invMMin').textContent=item.min+' '+(item.unit||'adet');
+  E('invModal').classList.add('open');
+  setTimeout(function(){var i=E('invQtyInp');i.select&&i.select();},60);
+}
+function closeInvModal(){E('invModal').classList.remove('open');_invModalIdx=null;}
+function invDelta(d){var i=E('invQtyInp');i.value=Math.max(0,(parseInt(i.value)||0)+d);}
+function saveInvStock(){
+  if(_invModalIdx===null)return;
+  var newVal=Math.max(0,parseInt(E('invQtyInp').value)||0);
+  _invData[_invModalIdx].cur=newVal;
+  _invData[_invModalIdx].updated=new Date().toLocaleDateString('tr-TR');
+  var itemName=_invData[_invModalIdx].name;
+  closeInvModal();
+  renderEnvanter(_invData);
+  // Try to persist via GAS if URL available
+  if(GAS_URL){
+    fetch(GAS_URL+'?action=update&item='+encodeURIComponent(itemName)+'&val='+newVal)
+      .then(function(r){return r.json();})
+      .then(function(d){showToast(d.ok?'Sheets\'e kaydedildi':'Sadece tarayıcıda (GAS kaydetmedi)',d.ok?'ok':'err');})
+      .catch(function(){showToast('Stok güncellendi (sadece tarayıcıda)','ok');});
+  } else {
+    showToast('Stok güncellendi (sadece tarayıcıda)','ok');
+  }
 }
 
 

@@ -582,6 +582,8 @@ function sendN8N(signals) {
 // ─────────────────────────────────────────────
 // ENVANTER
 // ─────────────────────────────────────────────
+// ── ENVANTER SETUP ─────────────────────────────────────────────
+// Şema: Malzeme | Kategori | Mevcut | Min | Birim | Daire | Not | Son Güncelleme
 function setupEnvanter() {
   var ss    = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(CFG.SHEETS.ENVANTER);
@@ -589,48 +591,98 @@ function setupEnvanter() {
   else sheet.clear();
 
   sheet.setTabColor("#006064");
-  sheet.getRange(1,1,1,3).setValues([["Kalem","Adet","Not"]])
+  var headers = ["Malzeme","Kategori","Mevcut","Min","Birim","Daire","Not","Son Güncelleme"];
+  sheet.getRange(1,1,1,headers.length).setValues([headers])
     .setBackground(CFG.C.BLACK).setFontColor(CFG.C.WHITE).setFontWeight("bold");
 
+  var today = Utilities.formatDate(new Date(), CFG.TIMEZONE, "dd.MM.yyyy");
   var items = [
-    ["Temiz Çarşaf Seti",     0, "1 set = nevresim+çarşaf+2 yastık kılıfı"],
-    ["Kirli Çarşaf Seti",     0, "Yıkanmayı bekliyor"],
-    ["Temiz Havlu (kişi)",    0, "Büyük banyo havlusu"],
-    ["Kirli Havlu",           0, "Yıkanmayı bekliyor"],
-    ["El Havlusu (temiz)",    0, ""],
-    ["Sabun (adet)",          0, ""],
-    ["Şampuan (adet)",        0, ""],
-    ["Tuvalet Kağıdı (rulo)", 0, ""],
-    ["Çöp Torbası (adet)",    0, ""],
-    ["Deterjan (kg)",         0, "Çamaşır deterjanı"],
-    ["Yumuşatıcı (lt)",       0, ""]
+    // Malzeme                  Kategori      Mevcut  Min  Birim     Daire    Not                                    Güncelleme
+    ["Temiz Çarşaf Seti",      "Çamaşır",    0,      20,  "set",    "Genel", "Nevresim + çarşaf + 2 yastık kılıfı", today],
+    ["Kirli Çarşaf Seti",      "Çamaşır",    0,      0,   "set",    "Genel", "Yıkama bekliyor",                     today],
+    ["Temiz Havlu (büyük)",    "Çamaşır",    0,      30,  "adet",   "Genel", "Kişi başı 2 havlu",                   today],
+    ["Kirli Havlu",            "Çamaşır",    0,      0,   "adet",   "Genel", "Yıkama bekliyor",                     today],
+    ["El Havlusu (temiz)",     "Çamaşır",    0,      20,  "adet",   "Genel", "",                                    today],
+    ["Sabun",                  "Amenities",  0,      15,  "adet",   "Genel", "Misafir başına 1",                    today],
+    ["Şampuan",                "Amenities",  0,      15,  "adet",   "Genel", "Misafir başına 1",                    today],
+    ["Tuvalet Kağıdı",        "Amenities",  0,      20,  "rulo",   "Genel", "Rezervasyon başına 2",                today],
+    ["Deterjan",               "Temizlik",   0,      5,   "kg",     "Genel", "Çamaşır deterjanı",                   today],
+    ["Yumuşatıcı",             "Temizlik",   0,      3,   "litre",  "Genel", "",                                    today],
+    ["Çöp Torbası",            "Temizlik",   0,      50,  "adet",   "Genel", "Mutfak + banyo",                      today],
+    ["Bulaşık Deterjanı",      "Temizlik",   0,      5,   "adet",   "Genel", "",                                    today],
+    ["WC Temizleyici",         "Temizlik",   0,      5,   "adet",   "Genel", "",                                    today],
   ];
 
-  sheet.getRange(2,1,items.length,3).setValues(items);
-  sheet.setColumnWidth(1,200); sheet.setColumnWidth(2,80); sheet.setColumnWidth(3,300);
+  sheet.getRange(2,1,items.length,headers.length).setValues(items);
+  sheet.setColumnWidth(1,200); sheet.setColumnWidth(2,100);
+  sheet.setColumnWidth(3,70);  sheet.setColumnWidth(4,60);
+  sheet.setColumnWidth(5,80);  sheet.setColumnWidth(6,100);
+  sheet.setColumnWidth(7,260); sheet.setColumnWidth(8,120);
   try { sheet.setFrozenRows(1); } catch(e) {}
 
   SpreadsheetApp.getActiveSpreadsheet().setActiveSheet(sheet);
-  logSys("ENVANTER","Envanter sayfası oluşturuldu.");
+  logSys("ENVANTER","Envanter sayfası (v2) oluşturuldu — "+items.length+" kalem.");
 }
 
 function openEnvanter() {
-  var ss    = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(CFG.SHEETS.ENVANTER);
   if (!sheet) { setupEnvanter(); return; }
   ss.setActiveSheet(sheet);
 }
 
+// Returns array of {name, cat, cur, min, unit, apt, note, updated}
+// Compatible with dashboard renderEnvanter()
 function getInventory() {
   var ss    = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(CFG.SHEETS.ENVANTER);
-  if (!sheet) return {};
-  var result = {};
-  sheet.getDataRange().getValues().slice(1).forEach(function(r) {
-    var k = txt(r[0]), v = parseInt(r[1])||0;
-    if (k) result[k] = v;
+  if (!sheet) return [];
+  var rows  = sheet.getDataRange().getValues().slice(1);
+  var result = [];
+  rows.forEach(function(r) {
+    var name = txt(r[0]);
+    if (!name) return;
+    // Detect old 3-column format: col[1] is number → legacy
+    var isLegacy = (rows[0] && typeof rows[0][1] === 'number');
+    if (isLegacy || typeof r[1] === 'number') {
+      result.push({name:name, cat:'Genel', cur:parseInt(r[1])||0, min:3, unit:'adet', apt:'Genel', note:txt(r[2]), updated:''});
+    } else {
+      result.push({
+        name:    name,
+        cat:     txt(r[1])||'Genel',
+        cur:     parseInt(r[2])||0,
+        min:     parseInt(r[3])||0,
+        unit:    txt(r[4])||'adet',
+        apt:     txt(r[5])||'Genel',
+        note:    txt(r[6])||'',
+        updated: txt(r[7])||''
+      });
+    }
   });
   return result;
+}
+
+// Update a single item's stock count (called from doGet ?action=update)
+function updateInventoryItem(name, val) {
+  var ss    = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(CFG.SHEETS.ENVANTER);
+  if (!sheet) return false;
+  var today = Utilities.formatDate(new Date(), CFG.TIMEZONE, "dd.MM.yyyy");
+  var data  = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (txt(data[i][0]) === name) {
+      var isLegacy = typeof data[i][1] === 'number';
+      if (isLegacy) {
+        sheet.getRange(i+1, 2).setValue(val);
+      } else {
+        sheet.getRange(i+1, 3).setValue(val); // col C = Mevcut
+        sheet.getRange(i+1, 8).setValue(today); // col H = Son Güncelleme
+      }
+      logSys("ENVANTER", name + " stok güncellendi → " + val);
+      return true;
+    }
+  }
+  return false;
 }
 
 // ─────────────────────────────────────────────
@@ -676,12 +728,18 @@ function calcRevenue() {
 // ============================================================
 
 function doGet(e) {
-  // ?api=1 → JSON döndür (standalone HTML için)
-  if (e && e.parameter && e.parameter.api) {
+  var p = (e && e.parameter) ? e.parameter : {};
+
+  // ?api=1 → full JSON payload
+  if (p.api) {
     var data = getWebAppData();
-    return ContentService
-      .createTextOutput(JSON.stringify(data))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // ?action=update&item=NAME&val=N → update single inventory item
+  if (p.action === 'update' && p.item) {
+    var ok = updateInventoryItem(p.item, parseInt(p.val)||0);
+    return ContentService.createTextOutput(JSON.stringify({ok:ok})).setMimeType(ContentService.MimeType.JSON);
   }
 
   // Normal erişim → HTML döndür
