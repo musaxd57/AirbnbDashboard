@@ -1,11 +1,10 @@
+import { getConfig } from "./config";
+
 export async function sendMessage(text: string): Promise<void> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
+  const { TELEGRAM_BOT_TOKEN: token, TELEGRAM_CHAT_ID: chatId } = getConfig();
 
   if (!token || !chatId) {
-    throw new Error(
-      "TELEGRAM_BOT_TOKEN veya TELEGRAM_CHAT_ID .env dosyasında eksik"
-    );
+    throw new Error("TELEGRAM_BOT_TOKEN veya TELEGRAM_CHAT_ID eksik");
   }
 
   const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {

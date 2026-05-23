@@ -1,4 +1,5 @@
 .env
 .env.local
+tokens.json
 .next/
 node_modules/
